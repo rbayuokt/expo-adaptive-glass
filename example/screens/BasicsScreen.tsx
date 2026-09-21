@@ -1,6 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import { GlassSurface, GlassTabBar } from 'expo-adaptive-glass';
+import {
+  GlassLens,
+  GlassMenu,
+  GlassSurface,
+  GlassSwitch,
+  GlassTabBar,
+} from '@rbayuokt/expo-adaptive-glass';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -13,6 +19,9 @@ export function BasicsScreen() {
   const [presses, setPresses] = useState(0);
   const [touching, setTouching] = useState(false);
   const [tab, setTab] = useState(0);
+  const [airplane, setAirplane] = useState(true);
+  const [wifi, setWifi] = useState(false);
+  const [menuPick, setMenuPick] = useState('nothing yet');
   const t = { color: theme.text };
 
   return (
@@ -54,6 +63,100 @@ export function BasicsScreen() {
         <Text style={[styles.p, { color: theme.muted }]}>
           Hold a tab to lift the lens, drag it across, let go on another tab.
         </Text>
+      </Section>
+
+      <Section title="Switch">
+        <GlassSurface style={styles.switches}>
+          <View style={styles.switchRow}>
+            <Text style={[styles.p, t]}>Airplane Mode</Text>
+            <GlassSwitch value={airplane} onValueChange={setAirplane} />
+          </View>
+          <View style={styles.switchRow}>
+            <Text style={[styles.p, t]}>Wi-Fi</Text>
+            <GlassSwitch value={wifi} onValueChange={setWifi} onColor="#0a84ff" />
+          </View>
+          <View style={styles.switchRow}>
+            <Text style={[styles.p, { color: theme.muted }]}>Disabled</Text>
+            <GlassSwitch value disabled />
+          </View>
+        </GlassSurface>
+        <Text style={[styles.p, { color: theme.muted }]}>
+          Press and hold a switch, then drag the thumb across.
+        </Text>
+      </Section>
+
+      <Section title="Menu">
+        <View style={styles.menuRow}>
+          <GlassMenu
+            accessibilityLabel="More"
+            trigger={<Ionicons name="ellipsis-horizontal" size={20} color={theme.text} />}
+            items={[
+              {
+                label: 'Select chats',
+                icon: <Ionicons name="checkmark-circle-outline" size={20} color={theme.text} />,
+                onPress: () => setMenuPick('Select chats'),
+              },
+              {
+                label: 'Read all',
+                icon: <Ionicons name="chatbubble-outline" size={20} color={theme.text} />,
+                onPress: () => setMenuPick('Read all'),
+              },
+              {
+                label: 'Sort by',
+                icon: <Ionicons name="swap-vertical" size={20} color={theme.text} />,
+                items: [
+                  { label: 'Newest', onPress: () => setMenuPick('Newest') },
+                  { label: 'Unread first', onPress: () => setMenuPick('Unread first') },
+                  {
+                    label: 'More',
+                    items: [
+                      { label: 'Name', onPress: () => setMenuPick('Name') },
+                      { label: 'Size', onPress: () => setMenuPick('Size') },
+                    ],
+                  },
+                ],
+              },
+              {
+                label: 'Delete all',
+                destructive: true,
+                icon: <Ionicons name="trash-outline" size={20} color="#ff3b30" />,
+                onPress: () => setMenuPick('Delete all'),
+              },
+            ]}
+          />
+          <Text style={[styles.p, styles.menuPick, { color: theme.muted }]}>
+            Picked: {menuPick}
+          </Text>
+          <GlassMenu
+            accessibilityLabel="Add"
+            trigger={<Ionicons name="add" size={22} color={theme.text} />}
+            items={[
+              {
+                label: 'New chat',
+                icon: <Ionicons name="chatbubble-outline" size={20} color={theme.text} />,
+                onPress: () => setMenuPick('New chat'),
+              },
+              {
+                label: 'New group',
+                icon: <Ionicons name="people-outline" size={20} color={theme.text} />,
+                onPress: () => setMenuPick('New group'),
+              },
+            ]}
+          />
+        </View>
+      </Section>
+
+      <Section title="Lens">
+        <GlassLens style={styles.lensStage}>
+          <Image
+            source={{ uri: 'https://picsum.photos/id/1043/800/400' }}
+            style={styles.lensImage}
+          />
+          <Text style={[styles.p, t]}>
+            Small print reads better through glass. Hold anywhere on this card and drag the lens
+            around.
+          </Text>
+        </GlassLens>
       </Section>
 
       <Section title="Custom tint">
@@ -103,6 +206,17 @@ const TABS = [
 ] as const;
 
 const styles = StyleSheet.create({
+  switches: { paddingHorizontal: 18, paddingVertical: 8 },
+  menuRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  menuPick: { flex: 1 },
+  lensStage: { gap: 10 },
+  lensImage: { height: 160, borderRadius: 16 },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+  },
   card: { padding: 20, gap: 10 },
   h: { fontSize: 20, fontWeight: '700' },
   p: { fontSize: 14, lineHeight: 20 },

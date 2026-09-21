@@ -131,7 +131,8 @@ final class GlassLensView: ExpoView, UIGestureRecognizerDelegate {
     // white would vanish on a light bar
     pill.backgroundColor =
       glassTint?.withAlphaComponent(0.3) ?? (dark ? UIColor(white: 1, alpha: 0.16) : UIColor(white: 0, alpha: 0.07))
-    let clear = UIColor.clear.cgColor
+    // transparent white, UIColor.clear is black and greys the fade
+    let clear = UIColor(white: 1, alpha: 0).cgColor
     lensRim.colors = [
       clear, UIColor(white: 1, alpha: 0.7).cgColor, clear, clear, UIColor(white: 1, alpha: 0.95).cgColor, clear, clear,
     ]
@@ -142,6 +143,15 @@ final class GlassLensView: ExpoView, UIGestureRecognizerDelegate {
   // MARK: - geometry, applied once per frame
 
 
+  // Wide enough for the tab's content plus padding, even past its own slot, like iOS 26 does for
+  // long labels. The subviews' union works whether or not RN flattened the tab's wrapper view.
+  private func pillWidth(_ item: UIView) -> CGFloat {
+    let content = item.subviews.reduce(CGRect.null) { $0.union($1.frame) }
+    return max(item.frame.width, content.isNull ? 0 : content.width + 2 * Self.pillPadding)
+  }
+
+  private static let pillPadding: CGFloat = 14
+
   private func lensRect() -> CGRect {
     let v = springs.value
     let x = v[0]
@@ -149,12 +159,15 @@ final class GlassLensView: ExpoView, UIGestureRecognizerDelegate {
     let item = items[nearest(x)]
     // at rest the pill fills its tab slot, the bar's 4pt padding is the gap
     let pillH = bounds.height
-    let pillW = item.frame.width
+    let pillW = pillWidth(item)
     // held: 1.18x the whole bar (row + 4pt padding each side), overflowing it like iOS 26
     let barH = bounds.height + 8
     let lensH = pillH + (barH * 1.18 - pillH) * press
     let w = (pillW + (max(pillW * 1.25, lensH * 1.2) - pillW) * press) * v[2]
-    return CGRect(x: x - w / 2, y: bounds.midY - lensH / 2, width: w, height: lensH)
+    // at rest a wide pill on an end tab is kept inside the bar, the lens may spill over
+    let inside = min(max(x, min(w / 2, bounds.midX)), max(bounds.width - w / 2, bounds.midX))
+    let cx = inside + (x - inside) * press
+    return CGRect(x: cx - w / 2, y: bounds.midY - lensH / 2, width: w, height: lensH)
   }
 
   private func applyFrame() {
@@ -372,16 +385,40 @@ final class SpringDriver {
     link = nil
   }
 
+  // rumus pegas beneran, bukan euler. nyari bug frame pertama loncat bodo ah pusing w TODO next
+  // exact solution of the damped spring over dt. Euler steps lurch on the first frames at 60 Hz
+  private func advance(_ i: Int, _ dt: CGFloat) {
+    let w = stiffness.squareRoot()
+    let z = damping
+    let x0 = value[i] - target[i]
+    let v0 = velocity[i]
+    let x: CGFloat
+    let v: CGFloat
+    if z < 1 {
+      let wd = w * (1 - z * z).squareRoot()
+      let e = exp(-z * w * dt)
+      let c = cos(wd * dt)
+      let s = sin(wd * dt)
+      let b = (v0 + z * w * x0) / wd
+      x = e * (x0 * c + b * s)
+      v = e * ((b * wd - z * w * x0) * c - (x0 * wd + z * w * b) * s)
+    } else {
+      let e = exp(-w * dt)
+      let b = v0 + w * x0
+      x = (x0 + b * dt) * e
+      v = (b - w * (x0 + b * dt)) * e
+    }
+    value[i] = target[i] + x
+    velocity[i] = v
+  }
+
   fileprivate func step(_ l: CADisplayLink) {
     // clamped so a stalled frame can't blow the spring up
     let dt = lastTimestamp == 0 ? 1.0 / 60 : min(l.timestamp - lastTimestamp, 1.0 / 30)
     lastTimestamp = l.timestamp
-    let c = 2 * damping * stiffness.squareRoot()
     var moving = false
     for i in value.indices {
-      let a = -stiffness * (value[i] - target[i]) - c * velocity[i]
-      velocity[i] += a * CGFloat(dt)
-      value[i] += velocity[i] * CGFloat(dt)
+      advance(i, CGFloat(dt))
       if abs(value[i] - target[i]) > 0.0005 * max(1, abs(target[i])) || abs(velocity[i]) > 0.001 { moving = true }
     }
     if !moving {

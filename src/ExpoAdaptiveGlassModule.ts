@@ -41,7 +41,7 @@ export function warnMissingNative() {
   if (warned || GlassNative || !__DEV__ || Platform.OS === 'web') return;
   warned = true;
   console.warn(
-    '[expo-adaptive-glass] Native module not found, so surfaces render a plain translucent ' +
+    '[@rbayuokt/expo-adaptive-glass] Native module not found, so surfaces render a plain translucent ' +
       'fallback. This library ships native code and does not run in Expo Go. Create a development ' +
       'build (`npx expo run:ios` / `npx expo run:android`, or EAS Build) and rebuild after installing.'
   );

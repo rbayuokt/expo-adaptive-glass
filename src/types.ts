@@ -100,6 +100,12 @@ export interface GlassProviderProps {
   adaptivePerformance?: boolean;
   respectLowPowerMode?: boolean;
   respectReduceTransparency?: boolean;
+  /**
+   * 0 frosted (default) to 1 clear, for every glass inside, like the Clear and Tinted setting
+   * in iOS 26. Thins the tint and the blur. System glass on iOS 26 switches to Apple's clear
+   * style from 0.5.
+   */
+  clarity?: number;
 }
 
 export interface GlassSurfaceProps extends Omit<ViewProps, 'style'> {
@@ -144,4 +150,57 @@ export interface GlassGroupProps extends ViewProps {
   /** where the group draws the merged glass itself (Android, iOS before 26) */
   tint?: GlassTint;
   intensity?: number;
+}
+
+export interface GlassSwitchProps extends Omit<ViewProps, 'children'> {
+  value: boolean;
+  onValueChange?: (value: boolean) => void;
+  disabled?: boolean;
+  /** Track colour when on. Defaults to the system green. */
+  onColor?: string;
+}
+
+export interface GlassLensProps extends ViewProps {
+  children?: ReactNode;
+  /** Lens size at full press, in points. */
+  lensWidth?: number;
+  lensHeight?: number;
+  magnification?: number;
+  /** Floats the lens this many points above the finger. Defaults to 0, right under it. */
+  lift?: number;
+  disabled?: boolean;
+}
+
+export interface GlassMenuItem {
+  label: string;
+  icon?: ReactNode;
+  onPress?: () => void;
+  destructive?: boolean;
+  /** Opens a submenu in the same panel instead of running onPress. */
+  items?: GlassMenuItem[];
+}
+
+export interface GlassMenuProps {
+  /** What the round button shows, usually an icon. */
+  trigger: ReactNode;
+  items: GlassMenuItem[];
+  size?: number;
+  width?: number;
+  tint?: GlassTint;
+  style?: StyleProp<ViewStyle>;
+  accessibilityLabel?: string;
+}
+
+export interface GlassSliderProps extends Omit<ViewProps, 'children'> {
+  value: number;
+  minimumValue?: number;
+  maximumValue?: number;
+  /** 0 is continuous */
+  step?: number;
+  /** While dragging, each time the stepped value changes. */
+  onValueChange?: (value: number) => void;
+  onSlidingComplete?: (value: number) => void;
+  disabled?: boolean;
+  /** The filled part of the track. Defaults to the system blue. */
+  fillColor?: string;
 }

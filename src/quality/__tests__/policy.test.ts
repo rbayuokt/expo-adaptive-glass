@@ -169,6 +169,17 @@ describe('allocation', () => {
     expect(r.allocations.get('d1')!.quality).toBe('minimal');
   });
 
+  it('leaves the surfaces behind an open menu exactly as they were', () => {
+    const cards = Array.from({ length: 6 }, (_, i) => surface(`c${i}`, { coverage: 0.2 }));
+    const before = allocate({ ...base, surfaces: cards });
+    const menu = surface('menu', { priority: 'high', coverage: 1, overlay: true });
+    const after = allocate({ ...base, surfaces: [...cards, menu] });
+    for (const c of cards)
+      expect(after.allocations.get(c.id)).toEqual(before.allocations.get(c.id));
+    expect(after.allocations.get('menu')!.quality).toBe('ultra');
+    expect(after.pressure).toBe(before.pressure);
+  });
+
   it('lets pinned surfaces bypass the budget but stay inside the platform', () => {
     const r = allocate({
       ...base,

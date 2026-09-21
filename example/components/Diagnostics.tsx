@@ -1,4 +1,4 @@
-import { GlassSurface, useGlassPerformance } from 'expo-adaptive-glass';
+import { GlassSurface, useGlassPerformance } from '@rbayuokt/expo-adaptive-glass';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 

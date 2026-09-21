@@ -16,6 +16,7 @@ export interface NativeGlassViewProps extends ViewProps {
   opaque: boolean;
   reduceMotion: boolean;
   intensity: number;
+  clarity: number;
   tintColor: number | null;
   tintScheme: 'system' | 'light' | 'dark';
   cornerRadius: number;
@@ -25,6 +26,10 @@ export interface NativeGlassViewProps extends ViewProps {
   onInteractionEnd?: () => void;
   onDragStart?: () => void;
   onDragEnd?: (event: NativeSyntheticEvent<{ x: number; y: number }>) => void;
+  // GlassMenu only
+  morphRect?: { x: number; y: number; width: number; height: number; radius: number } | null;
+  morphIndex?: number;
+  onMorphEnd?: (event: NativeSyntheticEvent<{ index: number }>) => void;
 }
 
 export const NativeGlassView: ComponentType<NativeGlassViewProps> | null = GlassNative
@@ -60,4 +65,42 @@ export interface NativeGroupViewProps extends ViewProps {
 
 export const NativeGroupView: ComponentType<NativeGroupViewProps> | null = GlassNative
   ? requireNativeView<NativeGroupViewProps>('ExpoAdaptiveGlassGroup')
+  : null;
+
+export interface NativeSwitchViewProps extends ViewProps {
+  value: boolean;
+  disabled: boolean;
+  onColor: number | null;
+  lens: boolean;
+  onValueChange: (event: NativeSyntheticEvent<{ value: boolean }>) => void;
+}
+
+export const NativeSwitchView: ComponentType<NativeSwitchViewProps> | null = GlassNative
+  ? requireNativeView<NativeSwitchViewProps>('ExpoAdaptiveGlassSwitch')
+  : null;
+
+export interface NativeMagnifierViewProps extends ViewProps {
+  lensWidth: number;
+  lensHeight: number;
+  magnification: number;
+  lift: number;
+  refraction: boolean;
+  disabled: boolean;
+}
+
+export const NativeMagnifierView: ComponentType<NativeMagnifierViewProps> | null = GlassNative
+  ? requireNativeView<NativeMagnifierViewProps>('ExpoAdaptiveGlassMagnifier')
+  : null;
+
+export interface NativeSliderViewProps extends ViewProps {
+  value: number;
+  disabled: boolean;
+  fillColor: number | null;
+  lens: boolean;
+  onValueChange: (event: NativeSyntheticEvent<{ value: number }>) => void;
+  onSlidingComplete: (event: NativeSyntheticEvent<{ value: number }>) => void;
+}
+
+export const NativeSliderView: ComponentType<NativeSliderViewProps> | null = GlassNative
+  ? requireNativeView<NativeSliderViewProps>('ExpoAdaptiveGlassSlider')
   : null;

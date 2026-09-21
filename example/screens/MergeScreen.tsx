@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { GlassGroup, GlassSurface } from 'expo-adaptive-glass';
+import { GlassGroup, GlassSurface } from '@rbayuokt/expo-adaptive-glass';
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import Animated, {

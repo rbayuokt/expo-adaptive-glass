@@ -1,5 +1,5 @@
 {
-  "name": "expo-adaptive-glass",
+  "name": "@rbayuokt/expo-adaptive-glass",
   "version": "0.1.0",
   "description": "Adaptive native glass surfaces for Expo and React Native. Scales blur, refraction and highlights to device capability and live frame performance.",
   "main": "build/index.js",
@@ -73,16 +73,26 @@
   "peerDependencies": {
     "expo": "*",
     "react": "*",
-    "react-native": "*"
+    "react-native": "*",
+    "@react-navigation/bottom-tabs": ">=7.0.0"
   },
   "exports": {
     ".": {
       "types": "./build/index.d.ts",
       "default": "./build/index.js"
     },
+    "./navigation": {
+      "types": "./build/navigation/index.d.ts",
+      "default": "./build/navigation/index.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "peerDependenciesMeta": {
+    "@react-navigation/bottom-tabs": {
+      "optional": true
+    }
   }
 }

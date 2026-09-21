@@ -39,7 +39,7 @@ class ExpoAdaptiveGlassModule : Module() {
     }
 
     View(ExpoAdaptiveGlassView::class) {
-      Events("onInteractionStart", "onInteractionEnd", "onDragStart", "onDragEnd")
+      Events("onInteractionStart", "onInteractionEnd", "onDragStart", "onDragEnd", "onMorphEnd", "onMenuSelect", "onMenuDismiss", "onMenuLongPress")
 
       Prop("surfaceId") { view: ExpoAdaptiveGlassView, value: String -> view.surfaceId = value }
       Prop("renderer") { view: ExpoAdaptiveGlassView, value: String -> view.renderer = value }
@@ -51,11 +51,16 @@ class ExpoAdaptiveGlassModule : Module() {
       Prop("opaque") { view: ExpoAdaptiveGlassView, value: Boolean -> view.opaque = value }
       Prop("reduceMotion") { view: ExpoAdaptiveGlassView, value: Boolean -> view.reduceMotion = value }
       Prop("intensity") { view: ExpoAdaptiveGlassView, value: Double -> view.intensity = value.toFloat() }
+      Prop("clarity") { view: ExpoAdaptiveGlassView, value: Double -> view.clarity = value.toFloat() }
       Prop("tintColor") { view: ExpoAdaptiveGlassView, value: Int? -> view.tint = value }
       Prop("tintScheme") { view: ExpoAdaptiveGlassView, value: String -> view.tintScheme = value }
       Prop("cornerRadius") { view: ExpoAdaptiveGlassView, value: Double -> view.cornerRadiusDp = value.toFloat() }
       Prop("interactive") { view: ExpoAdaptiveGlassView, value: Boolean -> view.interactive = value }
       Prop("draggable") { view: ExpoAdaptiveGlassView, value: Boolean -> view.draggable = value }
+      Prop("morphRect") { view: ExpoAdaptiveGlassView, value: Map<String, Double>? -> view.morphRect = value }
+      Prop("morphIndex") { view: ExpoAdaptiveGlassView, value: Int -> view.morphIndex = value }
+      Prop("menuRows") { view: ExpoAdaptiveGlassView, value: List<List<Double>>? -> view.menuRows = value ?: emptyList() }
+      Prop("menuTrigger") { view: ExpoAdaptiveGlassView, value: Boolean -> view.menuTrigger = value }
 
       OnViewDidUpdateProps { view: ExpoAdaptiveGlassView ->
         view.propsDidUpdate()

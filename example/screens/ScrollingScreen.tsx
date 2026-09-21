@@ -1,4 +1,4 @@
-import { GlassSurface } from 'expo-adaptive-glass';
+import { GlassSurface } from '@rbayuokt/expo-adaptive-glass';
 import React from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

@@ -18,6 +18,8 @@ class AcrylicRenderer(private val density: Float) {
     val intensity: Float,
     val opaque: Boolean,
     val minimal: Boolean,
+    // 0 frosted to 1 clear
+    val clarity: Float = 0f,
   )
 
   private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -41,8 +43,10 @@ class AcrylicRenderer(private val density: Float) {
     val i = next.intensity
     baseColor = next.tint?.let { it or (0xFF shl 24) }
       ?: if (next.dark) Color.rgb(30, 30, 34) else Color.rgb(247, 247, 250)
-    liveFillAlpha = (if (next.dark) 0.14f else 0.1f) + 0.22f * i
-    acrylicFillAlpha = if (next.opaque) 0.97f else 0.62f + 0.28f * i
+    val c = next.clarity
+    liveFillAlpha = ((if (next.dark) 0.14f else 0.1f) + 0.22f * i) * (1f - 0.8f * c)
+    // no blur under acrylic, so it only clears so far before text behind gets hard to read past
+    acrylicFillAlpha = if (next.opaque) 0.97f else 0.62f + 0.28f * i - 0.3f * c
     light = highlight(next.tint, next.dark)
     shaderW = -1 // force gradient rebuild
   }
@@ -76,7 +80,7 @@ class AcrylicRenderer(private val density: Float) {
   private fun rebuildShaders(w: Int, h: Int, s: Style) {
     shaderW = w
     shaderH = h
-    val sheenAlpha = (if (s.dark) 0.12f else 0.32f) * (0.5f + s.intensity)
+    val sheenAlpha = (if (s.dark) 0.12f else 0.32f) * (0.5f + s.intensity) * (1f - 0.5f * s.clarity)
     sheenPaint.shader = LinearGradient(
       0f, 0f, 0f, h * 0.6f,
       withAlpha(light, sheenAlpha), withAlpha(light, 0f), Shader.TileMode.CLAMP,

@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { GlassSurface } from 'expo-adaptive-glass';
+import { GlassSurface } from '@rbayuokt/expo-adaptive-glass';
 import React, { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

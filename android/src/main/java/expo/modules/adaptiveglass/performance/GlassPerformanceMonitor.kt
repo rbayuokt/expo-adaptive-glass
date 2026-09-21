@@ -127,7 +127,13 @@ object GlassPerformanceMonitor {
     views.removeAll { it.get() == null || it.get() === view }
     views.add(WeakReference(view))
     update()
+    // new glass is budgeted on a guessed area until it's measured, measure it right after layout
+    // so the real allocation lands before it's been on screen long enough to cross-fade
+    main.removeCallbacks(measure)
+    main.postDelayed(measure, 50)
   }
+
+  private val measure = Runnable { emitNow() }
 
   fun unregister(view: ExpoAdaptiveGlassView) {
     views.removeAll { it.get() == null || it.get() === view }
