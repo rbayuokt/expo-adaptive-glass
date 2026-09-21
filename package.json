@@ -1,0 +1,88 @@
+{
+  "name": "expo-adaptive-glass",
+  "version": "0.1.0",
+  "description": "Adaptive native glass surfaces for Expo and React Native. Scales blur, refraction and highlights to device capability and live frame performance.",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "scripts": {
+    "build": "node internal/module_scripts/build.js",
+    "clean": "node internal/module_scripts/clean.js",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "test": "node internal/module_scripts/test.js",
+    "prepare": "node internal/module_scripts/prepare.js",
+    "example:ios": "npm install --prefix example && npm --prefix example run ios",
+    "example:android": "npm install --prefix example && npm --prefix example run android",
+    "open:ios": "node internal/module_scripts/open-ios.js",
+    "open:android": "node internal/module_scripts/open-android.js"
+  },
+  "keywords": [
+    "glass",
+    "glassmorphism",
+    "blur",
+    "backdrop blur",
+    "frosted glass",
+    "acrylic",
+    "liquid glass",
+    "UIGlassEffect",
+    "UIVisualEffectView",
+    "RenderEffect",
+    "RuntimeShader",
+    "AGSL",
+    "adaptive quality",
+    "performance",
+    "react-native",
+    "expo",
+    "expo-modules",
+    "ios",
+    "android",
+    "expo-adaptive-glass"
+  ],
+  "repository": "https://github.com/rbayuokt/expo-adaptive-glass",
+  "bugs": {
+    "url": "https://github.com/rbayuokt/expo-adaptive-glass/issues"
+  },
+  "author": "rbayuokt <rizkybayuoktavian@gmail.com> (https://github.com/rbayuokt)",
+  "license": "MIT",
+  "homepage": "https://github.com/rbayuokt/expo-adaptive-glass#readme",
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@types/jest": "^29.2.1",
+    "@types/react": "~19.2.2",
+    "babel-preset-expo": "~57.0.12",
+    "eslint": "~9.39.4",
+    "eslint-config-universe": "^15.0.3",
+    "expo": "^57.0.24",
+    "jest": "^29.7.0",
+    "jest-expo": "~57.0.5",
+    "prettier": "^3.0.0",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "typescript": "^5.9.2"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "roots": [
+      "<rootDir>/src"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/__tests__/fixtures\\.ts$"
+    ]
+  },
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*"
+  },
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "default": "./build/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
