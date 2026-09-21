@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useState } from 'react';
 
-import { GlassContext, createGlassManager } from './context';
+import { GlassClarityContext, GlassContext, createGlassManager } from './context';
+import { OverlayHost } from './overlay';
 import type { ManagerOptions } from './quality/GlassQualityManager';
 import type { GlassProviderProps } from './types';
 
@@ -11,6 +12,7 @@ export function GlassProvider({
   adaptivePerformance = true,
   respectLowPowerMode = true,
   respectReduceTransparency = true,
+  clarity = 0,
 }: GlassProviderProps) {
   const options: ManagerOptions = {
     quality,
@@ -41,5 +43,11 @@ export function GlassProvider({
     return () => manager.dispose();
   }, [manager]);
 
-  return <GlassContext.Provider value={manager}>{children}</GlassContext.Provider>;
+  return (
+    <GlassContext.Provider value={manager}>
+      <GlassClarityContext.Provider value={Math.max(0, Math.min(1, clarity))}>
+        <OverlayHost>{children}</OverlayHost>
+      </GlassClarityContext.Provider>
+    </GlassContext.Provider>
+  );
 }

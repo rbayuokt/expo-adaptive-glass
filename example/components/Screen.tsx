@@ -3,9 +3,10 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Backdrop } from './Backdrop';
+import { useTopSpace } from './Layout';
 import { useTheme } from '../theme';
 
-export const TAB_BAR_SPACE = 96;
+export const TAB_BAR_SPACE = 110;
 
 export function Screen({
   title,
@@ -21,6 +22,7 @@ export function Screen({
   animated?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const top = insets.top + 12 + useTopSpace();
   const theme = useTheme();
   const header = (
     <View style={styles.header}>
@@ -35,13 +37,13 @@ export function Screen({
         <ScrollView
           contentContainerStyle={[
             styles.content,
-            { paddingTop: insets.top + 12, paddingBottom: insets.bottom + TAB_BAR_SPACE },
+            { paddingTop: top, paddingBottom: insets.bottom + TAB_BAR_SPACE },
           ]}>
           {header}
           {children}
         </ScrollView>
       ) : (
-        <View style={[styles.fill, { paddingTop: insets.top + 12 }]}>
+        <View style={[styles.fill, { paddingTop: top }]}>
           <View style={styles.pad}>{header}</View>
           {children}
         </View>

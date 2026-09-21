@@ -13,6 +13,8 @@ final class AcrylicRenderer {
     var tint: UIColor?
     var intensity: CGFloat
     var minimal: Bool
+    // 0 frosted to 1 clear
+    var clarity: CGFloat = 0
   }
 
   let root = CALayer()
@@ -80,8 +82,9 @@ final class AcrylicRenderer {
     let fillAlpha: CGFloat
     switch next.mode {
     case .system: fillAlpha = 0  // UIGlassEffect carries the tint itself
-    case .liveBlur: fillAlpha = (next.dark ? 0.12 : 0.08) + 0.22 * i
-    case .acrylic: fillAlpha = 0.62 + 0.28 * i
+    case .liveBlur: fillAlpha = ((next.dark ? 0.12 : 0.08) + 0.22 * i) * (1 - 0.8 * next.clarity)
+    // no blur under acrylic, so it only clears so far before text behind gets hard to read past
+    case .acrylic: fillAlpha = 0.62 + 0.28 * i - 0.3 * next.clarity
     case .opaque: fillAlpha = 0.97
     }
     fill.backgroundColor = base.withAlphaComponent(fillAlpha).cgColor
@@ -89,7 +92,7 @@ final class AcrylicRenderer {
     // highlights lean toward the tint instead of pure white
     let light = Self.highlight(tint: next.tint, dark: next.dark)
     let showDecor = next.mode != .system && !next.minimal
-    let sheenAlpha: CGFloat = showDecor ? (next.dark ? 0.12 : 0.32) * (0.5 + i) : 0
+    let sheenAlpha: CGFloat = showDecor ? (next.dark ? 0.12 : 0.32) * (0.5 + i) * (1 - 0.5 * next.clarity) : 0
     sheen.colors = [light.withAlphaComponent(sheenAlpha).cgColor, light.withAlphaComponent(0).cgColor]
 
     let top: CGFloat = next.mode == .opaque ? 0.9 : (next.dark ? 0.3 : 0.75)

@@ -3,7 +3,7 @@ import { StyleSheet, View, processColor, useColorScheme } from 'react-native';
 
 import { warnMissingNative } from './ExpoAdaptiveGlassModule';
 import { NativeGlassView, type NativeGlassViewProps } from './NativeGlassView';
-import { useGlassManager } from './context';
+import { clearer, useGlassClarity, useGlassManager } from './context';
 import type { SurfaceDescriptor } from './quality/GlassQualityManager';
 import type { GlassSurfaceProps, GlassTint } from './types';
 
@@ -24,14 +24,16 @@ export function GlassSurface({
   onDragStart,
   onDragEnd,
   style,
-  ...rest
+  ...props
 }: GlassSurfaceProps) {
+  // internal, GlassMenu marks its glass as an overlay outside the budget
+  const { glassOverlay = false, ...rest } = props as typeof props & { glassOverlay?: boolean };
   const manager = useGlassManager();
   const id = useId();
 
   const desc = useMemo<SurfaceDescriptor>(
-    () => ({ priority, requestedQuality: quality, interactive, refraction }),
-    [priority, quality, interactive, refraction]
+    () => ({ priority, requestedQuality: quality, interactive, refraction, overlay: glassOverlay }),
+    [priority, quality, interactive, refraction, glassOverlay]
   );
 
   // layout effect so a list mounting 30 cards is budgeted before the first paint
@@ -46,6 +48,7 @@ export function GlassSurface({
     () => manager.getAllocation(id, desc)
   );
 
+  const clarity = useGlassClarity();
   const scheme = useColorScheme();
   const { tintScheme, tintColor } = useMemo(() => parseTint(tint), [tint]);
   const shape = { borderRadius: cornerRadius, borderCurve: 'continuous' as const };
@@ -54,7 +57,9 @@ export function GlassSurface({
     warnMissingNative();
     const dark = tintScheme === 'dark' || (tintScheme === 'system' && scheme === 'dark');
     return (
-      <View style={[shape, fallbackStyle(dark, intensity, tintColor), style]} {...rest}>
+      <View
+        style={[shape, fallbackStyle(dark, clearer(intensity, clarity), tintColor), style]}
+        {...rest}>
         {children}
       </View>
     );
@@ -70,7 +75,8 @@ export function GlassSurface({
     shaderQuality: allocation.shaderQuality,
     opaque: allocation.opaque,
     reduceMotion: allocation.reduceMotion,
-    intensity: Math.max(0, Math.min(1, intensity)),
+    intensity: clearer(intensity, clarity),
+    clarity,
     tintColor,
     tintScheme,
     cornerRadius,

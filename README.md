@@ -10,7 +10,7 @@ You don't pick a renderer. You mark what matters (`priority="critical"` for a ta
 `normal` for list cards) and the library spends the GPU budget in that order.
 
 ```tsx
-import { GlassProvider, GlassSurface } from 'expo-adaptive-glass';
+import { GlassProvider, GlassSurface } from '@rbayuokt/expo-adaptive-glass';
 
 export default function App() {
   return (
@@ -23,14 +23,16 @@ export default function App() {
 }
 ```
 
-On top of the plain surface there's a lens tab bar (`GlassTabBar`), glass that melts together
-and pulls apart (`GlassGroup`), and a built-in `draggable` prop. None of them need Reanimated or
+On top of the plain surface there's a lens tab bar (`GlassTabBar`), an iOS 26 style switch
+(`GlassSwitch`), a matching slider (`GlassSlider`), a magnifying lens over any content (`GlassLens`), a button that grows into a
+menu (`GlassMenu`), glass that melts together and pulls apart (`GlassGroup`), and a built-in
+`draggable` prop. None of them need Reanimated or
 Gesture Handler.
 
 ## Install
 
 ```bash
-npx expo install expo-adaptive-glass
+npx expo install @rbayuokt/expo-adaptive-glass
 npx expo run:ios        # or run:android, or an EAS build
 ```
 
@@ -43,24 +45,6 @@ permissions.
 | Development build / EAS | Everything |
 | Bare React Native | Should work once Expo Modules are installed (`npx install-expo-modules`), not tested yet |
 | Web | Static translucent fallback |
-
-### Expo SDK support
-
-`expo` is a `*` peer. The native side only uses Expo Modules APIs that have been around for
-several SDKs (`View`, `Prop`, `Events`, `OnViewDidUpdateProps`, `OnStartObserving`, one view per
-module), and the JS side imports `requireNativeView` and `requireOptionalNativeModule` from
-`expo`, so SDK 52 is the floor.
-
-What has actually been built and run so far:
-
-| SDK | Where | Result |
-| --- | --- | --- |
-| 57 (RN 0.86) | Android emulator (API 36) and an OPPO CPH2217 (Android 13) | Builds and runs |
-| 55 (RN 0.83) | iOS 26.1 simulator, Xcode 26.1 | Builds and runs, system glass active |
-| 57 | iOS with Xcode 26.1 | Expo's own `expo-modules-jsi` needs a newer Swift, not this package |
-
-The iOS 26 code is behind `#if compiler(>=6.2)`, so older Xcode versions still compile it and
-just never pick the system renderer.
 
 ## Tech stack
 
@@ -75,7 +59,8 @@ just never pick the system renderer.
 | Android glass | `RenderNode` and `RenderEffect` blur (API 31+), AGSL `RuntimeShader` (API 33+), `Paint` and gradients for acrylic |
 | Android timing | `Window.OnFrameMetricsAvailableListener`, `PowerManager` thermal and power-save state, `onTrimMemory` |
 | Motion | Hand-rolled critically damped springs on both platforms, driven by `postOnAnimation` on Android and a display link on iOS |
-| Example app | Expo SDK 57, Reanimated 4, expo-image, expo-linear-gradient, @expo/vector-icons |
+| Navigation | Optional `@rbayuokt/expo-adaptive-glass/navigation` entry for React Navigation 7 bottom tabs and Expo Router |
+| Example app | Expo SDK 57, Reanimated 4, React Navigation 7, expo-image, expo-linear-gradient, @expo/vector-icons |
 
 Native code measures and draws. It never decides a tier. Every decision comes from the
 TypeScript policy, which is why the whole thing is testable without a device.
@@ -128,8 +113,25 @@ own small blur node. The backdrop is recorded once per frame however many surfac
 | `adaptivePerformance` | `true` | React to measured frame times |
 | `respectLowPowerMode` | `true` | Cap at `medium` in Low Power Mode and Battery Saver |
 | `respectReduceTransparency` | `true` | Opaque material when the setting is on |
+| `clarity` | `0` | `0` frosted to `1` clear, for every glass inside, like the Clear and Tinted setting in iOS 26 |
 
 It's optional. Surfaces outside a provider share one with these defaults.
+
+`clarity` thins the tint, sheen and blur on everything at once, so an app can offer the same
+choice as iOS 26 Settings from one state value:
+
+```tsx
+const [clarity, setClarity] = useState(0);
+
+<GlassProvider clarity={clarity}>
+  <App />
+</GlassProvider>
+```
+
+From `0.5` the iOS 26 system glass switches to Apple's own clear style, and iOS 15 to 25 uses
+the thinner blur material. On Android the blur radius drops to a fifth at `1`. Acrylic has no
+blur under it, so it only clears partway. Components that put text on a tinted surface can read
+the value with `useGlassClarity()`.
 
 ### `<GlassSurface>`
 
@@ -168,7 +170,8 @@ used because it never reacted with React Native content inside the glass on iOS 
 </GlassTabBar>
 ```
 
-The selected tab sits on a soft pill that fills its slot. Hold the bar and the pill lifts into a
+The selected tab sits on a soft pill that fills its slot, or grows past it when a long label needs
+the room, so there's always at least 14 pt around the icon and label. Hold the bar and the pill lifts into a
 clear lens about 1.18× the bar's height, spilling over the top and bottom. The middle of the lens
 magnifies what's under it (1.2×), the rim bends it like the edge of real glass, and the whole bar
 swells a little. Drag and the lens follows, stretching with speed. Let go and it shrinks back
@@ -195,6 +198,50 @@ How the lens is drawn:
 - The lens is cheap, so it shows on every tier except `minimal`. Bending only runs where
   refraction is on (`high` and `ultra`). `minimal`, Reduce Transparency and Reduce Motion get
   the plain sliding pill.
+
+### React Navigation and Expo Router
+
+`@rbayuokt/expo-adaptive-glass/navigation` has a ready-made tab bar for React Navigation's bottom tabs.
+Expo Router's `<Tabs>` is built on the same navigator, so it works there too:
+
+```tsx
+// app/(tabs)/_layout.tsx
+import { Tabs } from 'expo-router';
+import { GlassNavigationTabBar, GlassScreenBackdrop } from '@rbayuokt/expo-adaptive-glass/navigation';
+
+export default function TabLayout() {
+  return (
+    <Tabs
+      screenOptions={{ headerShown: false }}
+      tabBar={(props) => <GlassNavigationTabBar {...props} />}
+      screenLayout={({ children }) => <GlassScreenBackdrop>{children}</GlassScreenBackdrop>}>
+      <Tabs.Screen
+        name="index"
+        options={{ title: 'Home', tabBarIcon: ({ color, size }) => <Ionicons name="home" color={color} size={size} /> }}
+      />
+      <Tabs.Screen name="library" options={{ title: 'Library', tabBarBadge: 3 }} />
+    </Tabs>
+  );
+}
+```
+
+With plain React Navigation it's the same two props on `Tab.Navigator`.
+
+- It reads the screen options you'd use with the stock bar: `title`, `tabBarLabel`,
+  `tabBarIcon`, `tabBarBadge`, `tabBarShowLabel`, `tabBarActiveTintColor`,
+  `tabBarInactiveTintColor`, `tabBarAccessibilityLabel` and `tabBarButtonTestID`.
+- It fires `tabPress` before navigating, so `preventDefault` in a listener works, and a tap on
+  the current tab still sends it (handy for scroll-to-top).
+- The bar floats over the screens and sits above the bottom safe-area inset. Give scrolling
+  content some bottom padding so the last rows can scroll out from under it. Pass `style` to
+  change its position, `tint` and `intensity` for the glass.
+- `screenLayout` with `GlassScreenBackdrop` is what makes the bar blur the screens on Android
+  (see [Android needs a backdrop](#android-needs-a-backdrop)). On iOS it's a plain `View`, so
+  leaving it out only costs the Android blur. `screenLayout` needs React Navigation 7 or an
+  Expo Router built on it.
+
+The entry point doesn't import React Navigation, so apps without it don't pay for it. The
+example's **Nav** tab runs a real bottom-tabs navigator with this bar.
 
 ### `<GlassGroup>`
 
@@ -226,6 +273,117 @@ any depth inside the group.
 Up to eight members merge on Android. On iOS, don't animate the opacity of a view that holds
 glass, `UIVisualEffectView` stops rendering inside it. Fade the content instead.
 
+### `<GlassSwitch>`
+
+```tsx
+<GlassSwitch value={wifi} onValueChange={setWifi} onColor="#0a84ff" />
+```
+
+A controlled switch with the iOS 26 press. Holding it turns the white thumb into a larger glass
+lens that sits over the track, dragging moves it while the track blends from off to `onColor`,
+and letting go settles it on the nearer side. A tap flips it. The lens is clear: the track shows
+through at its own size and only the rim bends it.
+
+| Prop | Default | Does |
+| --- | --- | --- |
+| `value` | | On or off |
+| `onValueChange` | | Called with the new value after a tap or a drag |
+| `disabled` | `false` | Dims it and ignores touches |
+| `onColor` | system green | Track colour when on |
+
+It's 64 × 28 by default, pass `style` to resize it. The `minimal` tier and Reduce Motion skip the
+lens. Without the native module, in Expo Go for example, it renders React Native's `Switch`.
+
+### `<GlassSlider>`
+
+```tsx
+<GlassSlider value={volume} onValueChange={setVolume} step={0.05} fillColor="#5e5ce6" />
+```
+
+The same idea as `GlassSwitch`: the white thumb swells into a clear lens over the track while
+it's held, follows the finger, and settles back into the thumb on release. A touch off the thumb
+jumps it there first.
+
+| Prop | Default | Does |
+| --- | --- | --- |
+| `value` | | Current value |
+| `minimumValue` / `maximumValue` | `0` / `1` | Range |
+| `step` | `0` | `0` is continuous. `onValueChange` only fires when the stepped value changes |
+| `onValueChange` | | While dragging |
+| `onSlidingComplete` | | On release |
+| `disabled` | `false` | Dims it and ignores touches |
+| `fillColor` | system blue | The filled part of the track |
+
+It stretches to its parent's width and is 44 tall by default. The `minimal` tier and Reduce
+Motion skip the lens. React Native has no slider to fall back to, so without the native module
+(Expo Go) it renders nothing.
+
+### `<GlassLens>`
+
+```tsx
+<GlassLens>
+  <Image source={photo} style={{ height: 160 }} />
+  <Text>Small print</Text>
+</GlassLens>
+```
+
+Hold anywhere on the content for a moment and a clear lens grows out of the finger and
+magnifies what's under it. It follows the drag and sinks back into the finger on
+release. The hold is short (0.15 s), so a scroll view around it still scrolls on a swipe.
+
+| Prop | Default | Does |
+| --- | --- | --- |
+| `lensWidth` / `lensHeight` | `96` / `64` | Lens size in points. Equal values make a circle |
+| `magnification` | `1.4` | Zoom at the lens center |
+| `lift` | `0` | Floats the lens this many points above the finger, so the finger doesn't cover it |
+| `disabled` | `false` | No lens |
+
+The lens reads the content once per press, so it shows what was there when the hold started.
+Android replays the children's display lists, iOS takes one capture. Edge bending follows the
+`refraction` capability, and the `minimal` tier or a missing native module renders a plain `View`.
+
+### `<GlassMenu>`
+
+```tsx
+<GlassMenu
+  trigger={<Ionicons name="ellipsis-horizontal" size={20} />}
+  items={[
+    { label: 'Select chats', icon: <Ionicons name="checkmark-circle-outline" size={20} />, onPress: select },
+    {
+      label: 'Sort by',
+      items: [
+        { label: 'Newest', onPress: sortNewest },
+        { label: 'Unread first', onPress: sortUnread },
+      ],
+    },
+    { label: 'Delete all', destructive: true, onPress: deleteAll },
+  ]}
+/>
+```
+
+A round glass button that grows into a glass menu, like the iOS 26 `...` menus. One glass shape
+springs from the button to the panel while the icon fades out and the items fade in. An item with
+`items` opens a submenu in the same panel, which resizes to fit, with a back row on top. Tapping
+outside or picking an item closes it back into the button, Android's back button goes up one
+level.
+
+| Prop | Default | Does |
+| --- | --- | --- |
+| `trigger` | | What the button shows, usually an icon |
+| `items` | | `{ label, icon?, onPress?, destructive?, items? }`, nest `items` as deep as you like |
+| `size` | `44` | Button diameter |
+| `width` | `250` | Panel width |
+| `tint` | `'system'` | Same values as `GlassSurface` |
+
+The panel opens from the button's corner nearest the middle of the screen and stays on screen.
+It draws in a layer that `GlassProvider` keeps above the app, so it isn't clipped by the button's
+parent. Without a provider it falls back to a transparent `Modal`, which on Android can't blur
+the app behind it.
+
+React Native lays the panels out once. The morph itself runs natively each frame on the same
+glass view as `GlassSurface`, with the same renderers and quality tier. With Reduce Motion the
+shape jumps and only the content fades.
+
 ### Hooks
 
 | Hook | Returns | Re-renders |
@@ -233,6 +391,7 @@ glass, `UIVisualEffectView` stops rendering inside it. Fade the content instead.
 | `useGlassQuality()` | `{ quality, requestedQuality, renderer, downgradeReason }` | When the tier or reason changes |
 | `useGlassCapabilities()` | Renderer, live blur, refraction, blur radius, live surface cap, shader quality, refresh rate | When the tier changes |
 | `useGlassPerformance()` | Frame times, dropped ratio, fps, visible surfaces and area, thermal, power, memory, accessibility, scroll state | About twice a second, meant for dev screens |
+| `useGlassClarity()` | The provider's `clarity`, `0` to `1` | When the provider's value changes |
 
 `getGlassDeviceInfo()` returns the static facts the policy starts from (RAM, OS, screen,
 refresh rate, renderer support), or `null` without the native module.
@@ -314,23 +473,24 @@ npm install
 npm run example:ios       # or example:android
 ```
 
+The bottom bar is the library's own `GlassTabBar`.
+
 | Tab | Shows |
 | --- | --- |
-| Basics | Card, button, lens tab bar, tints, interactive surface |
-| Merge | Joining and splitting, a draggable circle, a + button that detaches into three actions |
-| Many | 1 to 30 surfaces with live diagnostics |
-| Scroll | 200-row `FlatList` of glass cards |
-| Stress | Animated backdrop, image grid, interactive tiles, effect toggles |
-| Quality | Pins each tier and shows the renderer and capabilities |
+| Home | Demo sections in a glass bar at the top: Basics, Merge, Nav, Many, Scroll, Stress, Quality, A11y |
+| Playground | One live surface with controls for every prop, and the JSX to copy |
+| Benchmark | Timed benchmark runs |
 | Inspect | Device facts and runtime state |
-| A11y | Reduce Transparency and Reduce Motion state |
-| Bench | Timed benchmark runs |
+| Settings | Global glass settings (Tinted / Clear, a clarity slider, quality, the provider toggles) and About |
+
+Inside Home, Merge has joining, splitting, a draggable circle and a detaching + button, and Nav
+runs a real React Navigation bottom-tabs navigator with `GlassNavigationTabBar`.
 
 ## Benchmarks
 
 No numbers yet. They'll only ever come from real devices.
 
-The Bench tab runs for 10 seconds over the animated backdrop with 1 to 30 surfaces, pinned to
+The Benchmark tab runs for 10 seconds over the animated backdrop with 1 to 30 surfaces, pinned to
 `ultra`, `medium`, `low` or left on `auto`, and logs one JSON line per run prefixed with
 `[benchmark]`. Use release builds (`npm run ios:release` / `npm run android:release` in
 `example/`), a charged phone at a normal temperature, and three runs per setup.
@@ -399,11 +559,20 @@ src/
   GlassBackdrop.tsx
   GlassTabBar.tsx
   GlassGroup.tsx
+  GlassSwitch.tsx
+  GlassSlider.tsx
+  GlassLens.tsx
+  GlassMenu.tsx
+  overlay.tsx                   top layer for menus, mounted by GlassProvider
+  navigation/                   GlassNavigationTabBar, GlassScreenBackdrop
   hooks/
 ios/
   ExpoAdaptiveGlassView.swift   surface: glass, RN children, press and drag
   GlassLensView.swift           tab bar lens and its springs
   GlassGroupView.swift          merging
+  GlassSwitchView.swift         switch with the lens thumb
+  GlassSliderView.swift         slider with the lens thumb
+  GlassMagnifierView.swift      GlassLens
   renderers/                    system glass, blur, acrylic layers, Metal lens
   performance/                  display link monitor, capability detector
 android/src/main/java/expo/modules/adaptiveglass/
@@ -412,6 +581,9 @@ android/src/main/java/expo/modules/adaptiveglass/
   GlassBackdropView.kt          shared backdrop RenderNode
   GlassLensView.kt              tab bar lens
   GlassGroupView.kt             merging
+  GlassSwitchView.kt            switch with the lens thumb
+  GlassSliderView.kt            slider with the lens thumb
+  GlassMagnifierView.kt         GlassLens
   renderers/                    AGSL lens, AGSL merge, blur, acrylic
   performance/                  FrameMetrics monitor, capability detector
 ```

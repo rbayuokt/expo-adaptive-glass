@@ -31,7 +31,7 @@ public class ExpoAdaptiveGlassModule: Module {
     }
 
     View(ExpoAdaptiveGlassView.self) {
-      Events("onInteractionStart", "onInteractionEnd", "onDragStart", "onDragEnd")
+      Events("onInteractionStart", "onInteractionEnd", "onDragStart", "onDragEnd", "onMorphEnd", "onMenuSelect", "onMenuDismiss", "onMenuLongPress")
 
       Prop("surfaceId") { (view, value: String) in view.surfaceId = value }
       Prop("renderer") { (view, value: String) in view.renderer = value }
@@ -42,11 +42,16 @@ public class ExpoAdaptiveGlassModule: Module {
       Prop("opaque") { (view, value: Bool) in view.opaqueMaterial = value }
       Prop("reduceMotion") { (view, value: Bool) in view.reduceMotion = value }
       Prop("intensity") { (view, value: Double) in view.intensity = CGFloat(value) }
+      Prop("clarity") { (view, value: Double) in view.clarity = CGFloat(value) }
       Prop("tintColor") { (view, value: UIColor?) in view.glassTint = value }
       Prop("tintScheme") { (view, value: String) in view.tintScheme = value }
       Prop("cornerRadius") { (view, value: Double) in view.cornerRadius = CGFloat(value) }
       Prop("interactive") { (view, value: Bool) in view.interactive = value }
       Prop("draggable") { (view, value: Bool) in view.draggable = value }
+      Prop("morphRect") { (view, value: [String: Double]?) in view.morphRect = value }
+      Prop("morphIndex") { (view, value: Int) in view.morphIndex = value }
+      Prop("menuRows") { (view, value: [[Double]]?) in view.menuRows = value ?? [] }
+      Prop("menuTrigger") { (view, value: Bool) in view.menuTrigger = value }
       // Android only
       Prop("shaderQuality") { (_: ExpoAdaptiveGlassView, _: Int) in }
 

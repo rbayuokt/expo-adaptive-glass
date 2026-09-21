@@ -2,6 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 
 import { parseTint } from './GlassSurface';
+import { clearer, useGlassClarity } from './context';
 import { NativeGroupView } from './NativeGlassView';
 import type { GlassGroupProps } from './types';
 
@@ -13,13 +14,14 @@ export function GlassGroup({
   intensity = 0.6,
   ...rest
 }: GlassGroupProps) {
+  const clarity = useGlassClarity();
   const { tintScheme, tintColor } = parseTint(tint);
   if (!NativeGroupView) return <View {...rest}>{children}</View>;
   return (
     <NativeGroupView
       collapsable={false}
       spacing={spacing}
-      intensity={Math.max(0, Math.min(1, intensity))}
+      intensity={clearer(intensity, clarity)}
       tintColor={tintColor}
       tintScheme={tintScheme}
       {...rest}>

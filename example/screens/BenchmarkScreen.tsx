@@ -4,7 +4,7 @@ import {
   useGlassPerformance,
   type GlassPerformanceMetrics,
   type GlassQuality,
-} from 'expo-adaptive-glass';
+} from '@rbayuokt/expo-adaptive-glass';
 import React, { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 

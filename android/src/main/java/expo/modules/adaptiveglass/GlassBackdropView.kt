@@ -18,6 +18,7 @@ class GlassBackdropView(context: Context, appContext: AppContext) : ExpoView(con
   init {
     // or View skips draw() and goes straight to dispatchDraw()
     setWillNotDraw(false)
+    clipChildren = false
   }
 
   // RN already measured and placed the children, LinearLayout must not redo it

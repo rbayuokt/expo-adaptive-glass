@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { GlassBackdrop } from 'expo-adaptive-glass';
+import { GlassBackdrop } from '@rbayuokt/expo-adaptive-glass';
 import React, { useEffect } from 'react';
 import { StyleSheet, useColorScheme, useWindowDimensions } from 'react-native';
 import Animated, {

@@ -12,7 +12,8 @@ export function getGlassDeviceInfo(): GlassDeviceInfo | null {
     try {
       deviceInfo = GlassNative?.getDeviceInfo() ?? null;
     } catch (e) {
-      if (__DEV__) console.warn('[expo-adaptive-glass] getDeviceInfo failed, using fallback', e);
+      if (__DEV__)
+        console.warn('[@rbayuokt/expo-adaptive-glass] getDeviceInfo failed, using fallback', e);
       deviceInfo = null;
     }
   }
@@ -41,4 +42,16 @@ export const GlassContext = createContext<GlassQualityManager | null>(null);
 
 export function useGlassManager(): GlassQualityManager {
   return useContext(GlassContext) ?? getDefaultManager();
+}
+
+export const GlassClarityContext = createContext(0);
+
+/** The provider's `clarity`, 0 frosted to 1 clear. */
+export function useGlassClarity(): number {
+  return useContext(GlassClarityContext);
+}
+
+// less frost tint and less blur as the glass gets clearer
+export function clearer(intensity: number, clarity: number) {
+  return Math.max(0, Math.min(1, intensity)) * (1 - 0.85 * clarity);
 }

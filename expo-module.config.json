@@ -7,7 +7,10 @@
     "modules": [
       "ExpoAdaptiveGlassModule",
       "ExpoAdaptiveGlassLensModule",
-      "ExpoAdaptiveGlassGroupModule"
+      "ExpoAdaptiveGlassGroupModule",
+      "ExpoAdaptiveGlassSwitchModule",
+      "ExpoAdaptiveGlassMagnifierModule",
+      "ExpoAdaptiveGlassSliderModule"
     ]
   },
   "android": {
@@ -15,7 +18,10 @@
       "expo.modules.adaptiveglass.ExpoAdaptiveGlassModule",
       "expo.modules.adaptiveglass.ExpoAdaptiveGlassBackdropModule",
       "expo.modules.adaptiveglass.ExpoAdaptiveGlassLensModule",
-      "expo.modules.adaptiveglass.ExpoAdaptiveGlassGroupModule"
+      "expo.modules.adaptiveglass.ExpoAdaptiveGlassGroupModule",
+      "expo.modules.adaptiveglass.ExpoAdaptiveGlassSwitchModule",
+      "expo.modules.adaptiveglass.ExpoAdaptiveGlassMagnifierModule",
+      "expo.modules.adaptiveglass.ExpoAdaptiveGlassSliderModule"
     ]
   }
 }

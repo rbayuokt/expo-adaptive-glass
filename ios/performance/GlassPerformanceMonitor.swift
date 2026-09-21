@@ -52,6 +52,21 @@ final class GlassPerformanceMonitor: NSObject {
     views.removeAll { $0.view == nil || $0.view === view }
     views.append(WeakView(view))
     updateLink()
+    measureSoon()
+  }
+
+  private var measurePending = false
+
+  // New glass is budgeted on a guessed area until it's measured. Measuring right after it's laid
+  // out lets the real allocation land while the view still switches without a cross-fade,
+  // instead of up to half a second later as a visible flicker.
+  private func measureSoon() {
+    guard !measurePending, emit != nil else { return }
+    measurePending = true
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+      self.measurePending = false
+      self.emitNow()
+    }
   }
 
   func unregister(_ view: ExpoAdaptiveGlassView) {

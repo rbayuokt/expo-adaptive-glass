@@ -22,7 +22,7 @@ config.resolver.nodeModulesPaths = [
 ];
 
 config.resolver.extraNodeModules = {
-  'expo-adaptive-glass': '..',
+  '@rbayuokt/expo-adaptive-glass': '..',
 };
 
 config.watchFolders = [path.resolve(__dirname, '..')];

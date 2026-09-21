@@ -107,12 +107,27 @@ class GlassLensView(context: Context, appContext: AppContext) : ExpoView(context
 
   private fun itemCenter(i: Int): Float? = getChildAt(i)?.let { it.left + it.width / 2f }
 
+  // Wide enough for the tab's content plus padding, even past its own slot, like iOS 26 does for
+  // long labels. The children's union works whether or not RN flattened the tab's wrapper view.
+  private fun pillWidth(i: Int): Float {
+    val slot = getChildAt(i) as? android.view.ViewGroup ?: return getChildAt(i)?.width?.toFloat() ?: 0f
+    var left = Int.MAX_VALUE
+    var right = Int.MIN_VALUE
+    for (c in 0 until slot.childCount) {
+      val v = slot.getChildAt(c)
+      left = minOf(left, v.left)
+      right = maxOf(right, v.right)
+    }
+    val content = if (right > left) (right - left).toFloat() else 0f
+    return max(slot.width.toFloat(), content + 2 * PILL_PADDING_DP * density)
+  }
+
   private fun settleOn(i: Int, animated: Boolean) {
     val child = getChildAt(i) ?: return
     val cx = child.left + child.width / 2f
     if (!animated || child.width == 0) {
       springs.snap(0, cx)
-      springs.snap(1, child.width.toFloat())
+      springs.snap(1, pillWidth(i))
       springs.snap(2, 1f)
       springs.snap(3, 0f)
       placed = child.width > 0
@@ -121,7 +136,7 @@ class GlassLensView(context: Context, appContext: AppContext) : ExpoView(context
     }
     val t = springs.target
     t[0] = cx
-    t[1] = child.width.toFloat()
+    t[1] = pillWidth(i)
     t[2] = 1f
     t[3] = 0f
     springs.stiffness = 420f
@@ -138,7 +153,10 @@ class GlassLensView(context: Context, appContext: AppContext) : ExpoView(context
     val barH = height + 8f * density
     val lensH = pillH + (barH * 1.18f - pillH) * press
     val w = (pillW + (max(pillW * 1.25f, lensH * 1.2f) - pillW) * press) * v[2]
-    rect.set(v[0] - w / 2, height / 2f - lensH / 2, v[0] + w / 2, height / 2f + lensH / 2)
+    // at rest a wide pill on an end tab is kept inside the bar, the lens may spill over
+    val inside = v[0].coerceIn(min(w / 2, width / 2f), max(width - w / 2, width / 2f))
+    val cx = inside + (v[0] - inside) * press
+    rect.set(cx - w / 2, height / 2f - lensH / 2, cx + w / 2, height / 2f + lensH / 2)
   }
 
   private fun isDark() = when (tintScheme) {
@@ -194,6 +212,7 @@ class GlassLensView(context: Context, appContext: AppContext) : ExpoView(context
     }
   }
 
+  // RenderNode + AGSL, ikon sempet ilang pas dilepas gara-gara alpha. udah bener, JANGAN DISENTUH
   private fun drawLens(canvas: Canvas, press: Float) {
     val m = 1f + 0.2f * press
     val cx = rect.centerX()
@@ -335,5 +354,9 @@ class GlassLensView(context: Context, appContext: AppContext) : ExpoView(context
       }
     }
     return best
+  }
+
+  private companion object {
+    const val PILL_PADDING_DP = 14f
   }
 }

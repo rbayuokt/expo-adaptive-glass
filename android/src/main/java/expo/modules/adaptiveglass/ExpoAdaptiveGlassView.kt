@@ -4,6 +4,8 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.Outline
 import android.os.Build
 import android.os.SystemClock
@@ -19,6 +21,7 @@ import expo.modules.adaptiveglass.renderers.ShaderGlassRenderer
 import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.viewevent.EventDispatcher
 import expo.modules.kotlin.views.ExpoView
+import kotlin.math.abs
 import kotlin.math.hypot
 
 // Hosts its RN children so they stay out of the backdrop recording, otherwise the glass would
@@ -28,6 +31,9 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
   val onInteractionEnd by EventDispatcher<Map<String, Any>>()
   val onDragStart by EventDispatcher<Map<String, Any>>()
   val onDragEnd by EventDispatcher<Map<String, Any>>()
+  val onMorphEnd by EventDispatcher<Map<String, Any>>()
+  val onMenuSelect by EventDispatcher<Map<String, Any>>()
+  val onMenuDismiss by EventDispatcher<Map<String, Any>>()
 
   var surfaceId = ""
   var renderer = "acrylic"
@@ -39,11 +45,53 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
   var opaque = false
   var reduceMotion = false
   var intensity = 0.6f
+  var clarity = 0f
   var tint: Int? = null
   var tintScheme = "system"
   var cornerRadiusDp = 24f
   var interactive = false
   var draggable = false
+  // GlassMenu: the glass shows only this rect (x, y, width, height, radius in dp) and springs to
+  // it when it changes. Child `morphIndex` is shown, the others fade out.
+  var morphRect: Map<String, Double>? = null
+  var morphIndex = 0
+  // GlassMenu rows of the shown panel, [x, y, width, height] in dp. While set, the view takes every
+  // touch, slides a highlight under the finger and reports the row it's released on.
+  var menuRows: List<List<Double>> = emptyList()
+  // GlassMenu button: a long press opens the menu and the same finger keeps driving it
+  var menuTrigger = false
+  val onMenuLongPress by EventDispatcher<Map<String, Any>>()
+  private var triggerDownX = 0f
+  private var triggerDownY = 0f
+  private var triggerFired = false
+  private val triggerLongPress = Runnable {
+    triggerFired = true
+    MenuFinger.press(triggerDownX, triggerDownY, touchSlop.toFloat())
+    parent?.requestDisallowInterceptTouchEvent(true)
+    performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+    onMenuLongPress(emptyMap())
+  }
+  private var appliedRows: List<List<Double>> = emptyList()
+  private var appliedRowsIndex = -1
+  private var hotRow = -1
+  // x, y (px): how far the finger pulls the open panel, applied as a jelly stretch
+  private val pullSpring = SpringSet(this, 2) { morphFrame() }
+  private var pullShiftX = 0f
+  private var pullShiftY = 0f
+  private var menuPointX = Float.NaN
+  private var menuPointY = 0f
+  // x, y, width, height (px), alpha
+  private val highlightSpring = SpringSet(this, 5) { invalidate() }
+  private val highlightPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+  private var morphActive = false
+  private val morphFrom = MorphState()
+  private val morphTo = MorphState()
+  private val morphNow = MorphState()
+  private var morphAppliedIndex = -1
+  // button <-> panel morphs go through a round blob, panel <-> panel ones don't
+  private var morphBlob = false
+  private var morphEndSent = true
+  private val morphSpring = SpringSet(this, 1) { morphFrame() }
   private var dragging = false
   private var dragStartX = 0f
   private var dragStartY = 0f
@@ -96,10 +144,17 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
     setWillNotDraw(false)
     outlineProvider = object : ViewOutlineProvider() {
       override fun getOutline(view: View, outline: Outline) {
-        outline.setRoundRect(0, 0, view.width, view.height, radiusPx(view.width, view.height))
+        if (morphActive) {
+          val r = morphNow.rect
+          outline.setRoundRect(r.left.toInt(), r.top.toInt(), r.right.toInt(), r.bottom.toInt(), morphNow.radius)
+        } else {
+          outline.setRoundRect(0, 0, view.width, view.height, radiusPx(view.width, view.height))
+        }
       }
     }
     clipToOutline = true
+    // the outline clips already, LinearLayout's default would also cut children off at their own bounds
+    clipChildren = false
   }
 
 
@@ -139,6 +194,12 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
     applyProps(animated = false)
   }
 
+  // a panel mounted mid-morph stays hidden until the morph picks it
+  override fun onViewAdded(child: View) {
+    super.onViewAdded(child)
+    if (morphActive) child.alpha = if (indexOfChild(child) == morphAppliedIndex) 1f else 0f
+  }
+
   // RN already measured and placed the children, LinearLayout must not redo it
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
     setMeasuredDimension(
@@ -156,6 +217,8 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
 
 
   fun propsDidUpdate() {
+    updateMorph()
+    updateMenu()
     invalidateOutline()
     // no cross-fade right after mount, e.g. the first budget pass
     applyProps(animated = SystemClock.uptimeMillis() - attachedAt > 300)
@@ -167,7 +230,7 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
       "light" -> false
       else -> (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
     }
-    material.configure(AcrylicRenderer.Style(dark, tint, intensity, opaque, quality == "minimal"))
+    material.configure(AcrylicRenderer.Style(dark, tint, intensity, opaque, quality == "minimal", clarity))
 
     val wantsLive = !opaque && (renderer == "nativeBlur" || renderer == "shaderGlass") &&
       Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -196,6 +259,363 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
       }
       start()
     }
+  }
+
+  private class MorphState {
+    val rect = android.graphics.RectF()
+    var radius = 0f
+    var alphas = FloatArray(0)
+
+    fun set(o: MorphState) {
+      rect.set(o.rect)
+      radius = o.radius
+      alphas = o.alphas.copyOf()
+    }
+  }
+
+  private fun lerpMorph(t: Float) {
+    val a = morphFrom.rect
+    val b = morphTo.rect
+    morphNow.rect.set(
+      a.left + (b.left - a.left) * t, a.top + (b.top - a.top) * t,
+      a.right + (b.right - a.right) * t, a.bottom + (b.bottom - a.bottom) * t,
+    )
+    val pill = minOf(morphNow.rect.width(), morphNow.rect.height()) / 2f
+    val tc = t.coerceIn(0f, 1f)
+    var radius = morphFrom.radius + (morphTo.radius - morphFrom.radius) * tc
+    // roundness eases in from whichever shape we start at, so the corners never jump
+    if (morphBlob) {
+      val round = if (morphAppliedIndex == 0) 2f * tc - tc * tc else 1f - tc * tc
+      radius = maxOf(radius, pill * round)
+    }
+    morphNow.radius = minOf(radius, pill)
+    // outgoing content fades early, incoming overlaps it only briefly
+    morphNow.alphas = FloatArray(morphTo.alphas.size) { i ->
+      val from = morphFrom.alphas.getOrElse(i) { 0f }
+      val to = morphTo.alphas[i]
+      val k = if (to > from) ((t - 0.1f) / 0.5f).coerceIn(0f, 1f) else (t / 0.4f).coerceIn(0f, 1f)
+      from + (to - from) * k
+    }
+  }
+
+  private fun updateMorph() {
+    val m = morphRect
+    if (m == null) {
+      if (morphActive) {
+        morphActive = false
+        morphSpring.stop()
+        pullSpring.stop()
+        pullSpring.snap(0, 0f)
+        pullSpring.snap(1, 0f)
+        highlightSpring.stop()
+        highlightSpring.snap(4, 0f)
+        hotRow = -1
+        menuPointX = Float.NaN
+        if (MenuFinger.menu?.get() === this) MenuFinger.menu = null
+        for (i in 0 until childCount) {
+          getChildAt(i).apply {
+            alpha = 1f
+            scaleX = 1f
+            scaleY = 1f
+            translationX = 0f
+            translationY = 0f
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) setRenderEffect(null)
+          }
+        }
+        invalidate()
+      }
+      return
+    }
+    val d = density
+    val x = (m["x"] ?: 0.0).toFloat() * d
+    val y = (m["y"] ?: 0.0).toFloat() * d
+    val target = android.graphics.RectF(x, y, x + (m["width"] ?: 0.0).toFloat() * d, y + (m["height"] ?: 0.0).toFloat() * d)
+    val radius = (m["radius"] ?: 0.0).toFloat() * d
+    val alphas = FloatArray(childCount) { if (it == morphIndex) 1f else 0f }
+    if (!morphActive) {
+      morphActive = true
+      morphTo.rect.set(target)
+      morphTo.radius = radius
+      morphTo.alphas = alphas
+      morphFrom.set(morphTo)
+      morphAppliedIndex = morphIndex
+      morphSpring.snap(0, 1f)
+      morphFrame()
+      return
+    }
+    if (target == morphTo.rect && radius == morphTo.radius && morphIndex == morphAppliedIndex) return
+    lerpMorph(morphSpring.value[0])
+    morphFrom.set(morphNow)
+    morphTo.rect.set(target)
+    morphTo.radius = radius
+    morphTo.alphas = alphas
+    morphBlob = morphIndex == 0 || morphAppliedIndex == 0
+    morphAppliedIndex = morphIndex
+    morphEndSent = false
+    // reduce motion: the shape jumps, only the content cross-fades
+    if (reduceMotion) {
+      morphFrom.rect.set(target)
+      morphFrom.radius = radius
+    }
+    morphSpring.snap(0, 0f)
+    morphSpring.target[0] = 1f
+    // open overshoots a little, close is critically damped so it can't wobble into the button
+    val opening = morphBlob && morphIndex != 0
+    morphSpring.stiffness = if (opening) 1100f else if (morphBlob) 420f else 300f
+    morphSpring.damping = if (opening) 0.62f else 1f
+    morphSpring.start()
+  }
+
+  private fun morphFrame() {
+    if (!morphActive) return
+    lerpMorph(morphSpring.value[0])
+    applyPull()
+    val r = morphNow.rect
+    for (i in 0 until minOf(childCount, morphNow.alphas.size)) {
+      val child = getChildAt(i)
+      val a = morphNow.alphas[i]
+      child.alpha = a
+      if (a <= 0f || child.width == 0 || child.height == 0) continue
+      // content scales with the shape, centre to centre
+      val k = minOf(r.width() / child.width, r.height() / child.height)
+      child.pivotX = child.width / 2f
+      child.pivotY = child.height / 2f
+      child.scaleX = k
+      child.scaleY = k
+      child.translationX = r.centerX() - (child.left + child.width / 2f)
+      child.translationY = r.centerY() - (child.top + child.height / 2f)
+      // content blurs as it fades, like the system menus
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val b = (1f - a) * 10f * density
+        child.setRenderEffect(if (b > 0.5f) android.graphics.RenderEffect.createBlurEffect(b, b, android.graphics.Shader.TileMode.DECAL) else null)
+      }
+    }
+    invalidateOutline()
+    invalidate()
+    if (morphSpring.value[0] == morphSpring.target[0] && !morphEndSent) {
+      morphEndSent = true
+      onMorphEnd(mapOf("index" to morphAppliedIndex))
+    }
+  }
+
+  private val menuActive get() = morphActive && menuRows.isNotEmpty()
+
+  private fun updateMenu() {
+    if (menuActive) MenuFinger.menu = java.lang.ref.WeakReference(this)
+    // a submenu can have the same row rects as its parent, so the panel index counts too
+    if (menuRows != appliedRows || morphIndex != appliedRowsIndex) {
+      appliedRows = menuRows
+      appliedRowsIndex = morphIndex
+      hotRow = -1
+      // a long press on the button is still down, its finger drives this menu
+      if (menuPointX.isNaN() && MenuFinger.down && MenuFinger.moved) {
+        getLocationOnScreen(scratch)
+        menuPointX = MenuFinger.x - scratch[0]
+        menuPointY = MenuFinger.y - scratch[1]
+      }
+      // a submenu took over under a finger that's still down, pick up from where it is
+      if (!menuPointX.isNaN()) {
+        track(menuPointX, menuPointY)
+      } else {
+        highlightSpring.target[4] = 0f
+        highlightSpring.start()
+      }
+    }
+  }
+
+  // forwards a long press on the button, in screen pixels, to the open menu
+  private fun handleTrigger(ev: MotionEvent): Boolean {
+    when (ev.actionMasked) {
+      MotionEvent.ACTION_DOWN -> {
+        triggerFired = false
+        triggerDownX = ev.rawX
+        triggerDownY = ev.rawY
+        removeCallbacks(triggerLongPress)
+        postDelayed(triggerLongPress, 300)
+      }
+      MotionEvent.ACTION_MOVE -> {
+        if (triggerFired) {
+          MenuFinger.move(ev.rawX, ev.rawY)
+        } else if (hypot(ev.rawX - triggerDownX, ev.rawY - triggerDownY) > touchSlop) {
+          removeCallbacks(triggerLongPress)
+        }
+      }
+      MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+        removeCallbacks(triggerLongPress)
+        if (triggerFired) MenuFinger.up(ev.rawX, ev.rawY, ev.actionMasked == MotionEvent.ACTION_UP)
+        triggerFired = false
+      }
+    }
+    return true
+  }
+
+  fun trackScreen(x: Float, y: Float) {
+    getLocationOnScreen(scratch)
+    track(x - scratch[0], y - scratch[1])
+  }
+
+  fun releaseScreen(x: Float, y: Float) {
+    getLocationOnScreen(scratch)
+    release(x - scratch[0], y - scratch[1], direct = false)
+  }
+
+  // SUSAH BGT ANJG, jari long press dioper lewat global biar menu yang baru muncul kebagian. jelek tapi jalan, TODO later
+  // the finger of a button long press, shared with whichever menu is open
+  object MenuFinger {
+    var menu: java.lang.ref.WeakReference<ExpoAdaptiveGlassView>? = null
+    var down = false
+    // like iOS, letting go without moving leaves the menu open instead of picking the row underneath
+    var moved = false
+    var x = 0f
+    var y = 0f
+    private var startX = 0f
+    private var startY = 0f
+    private var slop = 0f
+
+    fun press(rx: Float, ry: Float, touchSlop: Float) {
+      down = true
+      moved = false
+      startX = rx
+      startY = ry
+      x = rx
+      y = ry
+      slop = touchSlop
+    }
+
+    fun move(rx: Float, ry: Float) {
+      x = rx
+      y = ry
+      if (!moved && hypot(rx - startX, ry - startY) > slop) moved = true
+      if (moved) menu?.get()?.takeIf { it.menuActive }?.trackScreen(rx, ry)
+    }
+
+    fun up(rx: Float, ry: Float, lifted: Boolean) {
+      down = false
+      val m = menu?.get()?.takeIf { it.menuActive } ?: return
+      if (lifted && moved) m.releaseScreen(rx, ry) else m.track(-1f, -1f)
+    }
+  }
+
+  private fun rowAt(x: Float, y: Float): Int {
+    val slack = 8f * density
+    menuRows.forEachIndexed { i, r ->
+      if (r.size < 4) return@forEachIndexed
+      val left = r[0].toFloat() * density - slack
+      val top = r[1].toFloat() * density
+      if (x >= left && x <= left + r[2].toFloat() * density + 2 * slack && y >= top && y <= top + r[3].toFloat() * density) {
+        return i
+      }
+    }
+    return -1
+  }
+
+  private fun track(x: Float, y: Float) {
+    menuPointX = x
+    menuPointY = y
+    if (!menuActive) return
+    // (-1, -1) is how a cancelled press clears the highlight
+    if (x >= 0f || y >= 0f) pullToward(x, y) else letGo()
+    val i = rowAt(x, y)
+    if (i == hotRow) return
+    val wasHidden = hotRow < 0 && highlightSpring.value[4] < 0.05f
+    hotRow = i
+    if (i < 0) {
+      highlightSpring.target[4] = 0f
+      highlightSpring.start()
+      return
+    }
+    val r = menuRows[i]
+    for (k in 0 until 4) {
+      val t = r[k].toFloat() * density
+      if (wasHidden) highlightSpring.snap(k, t) else highlightSpring.target[k] = t
+    }
+    highlightSpring.target[4] = 1f
+    highlightSpring.stiffness = 520f
+    highlightSpring.damping = 1f
+    highlightSpring.start()
+    performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+  }
+
+  private fun release(x: Float, y: Float, direct: Boolean) {
+    menuPointX = Float.NaN
+    if (!menuActive) return
+    letGo()
+    val i = rowAt(x, y)
+    if (i >= 0) {
+      onMenuSelect(mapOf("index" to i))
+      return
+    }
+    if (direct && !morphTo.rect.contains(x, y)) onMenuDismiss(emptyMap())
+    hotRow = -1
+    highlightSpring.target[4] = 0f
+    highlightSpring.start()
+  }
+
+  private fun handleMenuTouch(ev: MotionEvent) {
+    when (ev.actionMasked) {
+      MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> track(ev.x, ev.y)
+      MotionEvent.ACTION_UP -> release(ev.x, ev.y, direct = true)
+      MotionEvent.ACTION_CANCEL -> {
+        letGo()
+        menuPointX = Float.NaN
+        hotRow = -1
+        highlightSpring.target[4] = 0f
+        highlightSpring.start()
+      }
+    }
+  }
+
+  // a slight lean toward the finger inside the panel, a rubber band past its edges
+  private fun pullToward(x: Float, y: Float) {
+    val r = morphTo.rect
+    if (r.width() <= 0f) return
+    val limit = 36f * density
+    fun rubber(o: Float) = if (o == 0f) 0f else Math.signum(o) * limit * (1f - 1f / (1f + abs(o) / limit))
+    val ox = x - x.coerceIn(r.left, r.right)
+    val oy = y - y.coerceIn(r.top, r.bottom)
+    pullSpring.target[0] = rubber(ox) + (x - r.centerX()) * 0.02f
+    pullSpring.target[1] = rubber(oy) + (y - r.centerY()) * 0.02f
+    pullSpring.stiffness = 700f
+    pullSpring.damping = 0.85f
+    pullSpring.start()
+  }
+
+  private fun letGo() {
+    pullSpring.target[0] = 0f
+    pullSpring.target[1] = 0f
+    pullSpring.stiffness = 500f
+    pullSpring.damping = 0.55f
+    pullSpring.start()
+  }
+
+  // efek jelly, angkanya ngasal sampe enak diliat. jangan tanya kenapa 0.25
+  // leading edge follows the pull, trailing edge lags, the other axis thins a little
+  private fun applyPull() {
+    val dx = pullSpring.value[0]
+    val dy = pullSpring.value[1]
+    val r = morphNow.rect
+    val cx = r.centerX()
+    val cy = r.centerY()
+    if (abs(dx) > 0.01f || abs(dy) > 0.01f) {
+      r.offset(dx * 0.5f, dy * 0.5f)
+      r.inset(-abs(dx) * 0.25f + abs(dy) * 0.08f, -abs(dy) * 0.25f + abs(dx) * 0.08f)
+      morphNow.radius = minOf(morphNow.radius, minOf(r.width(), r.height()) / 2f)
+    }
+    pullShiftX = r.centerX() - cx
+    pullShiftY = r.centerY() - cy
+  }
+
+  private fun drawHighlight(canvas: Canvas) {
+    if (!morphActive) return
+    val v = highlightSpring.value
+    val a = v[4].coerceIn(0f, 1f)
+    if (a < 0.01f) return
+    val dark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+    highlightPaint.color = AcrylicRenderer.withAlpha(if (dark) Color.WHITE else Color.BLACK, (if (dark) 0.14f else 0.07f) * a)
+    val r = 12f * density
+    val x = v[0] + pullShiftX
+    val y = v[1] + pullShiftY
+    canvas.drawRoundRect(x, y, x + v[2], y + v[3], r, r, highlightPaint)
   }
 
   // radii past half the short side (999 for a capsule) break the shader's distance field and
@@ -229,23 +649,31 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
   }
 
   override fun draw(canvas: Canvas) {
-    val w = width
-    val h = height
+    val r = morphNow.rect
+    val left = if (morphActive) r.left else 0f
+    val top = if (morphActive) r.top else 0f
+    val w = if (morphActive) r.width().toInt() else width
+    val h = if (morphActive) r.height().toInt() else height
     // in a merging group our own glass would draw twice
     if (w > 0 && h > 0 && !grouped) {
-      val radius = radiusPx(w, h)
-      val drewBlur = liveMix > 0f && drawBlur(canvas, w, h, radius)
+      val radius = if (morphActive) morphNow.radius else radiusPx(w, h)
+      val save = canvas.save()
+      canvas.translate(left, top)
+      val drewBlur = liveMix > 0f && drawBlur(canvas, w, h, radius, left, top)
       if (!drewBlur) activeRenderer = "acrylic"
       val spot = if (activeRenderer == "shaderGlass") 0f else specAlpha
       material.draw(canvas, w, h, radius, if (drewBlur) liveMix else 0f, spot, touchX, touchY)
+      canvas.restoreToCount(save)
+      drawHighlight(canvas)
     }
     super.draw(canvas)
   }
 
-  private fun drawBlur(canvas: Canvas, w: Int, h: Int, radius: Float): Boolean {
+  private fun drawBlur(canvas: Canvas, w: Int, h: Int, radius: Float, left: Float, top: Float): Boolean {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !canvas.isHardwareAccelerated) return false
     val source = backdrop?.node ?: return false
-    val blurEffect = NativeBlurRenderer.blur(blur * MAX_BLUR_DP * density)
+    // clearer glass blurs less
+    val blurEffect = NativeBlurRenderer.blur(blur * (1f - 0.8f * clarity) * MAX_BLUR_DP * density)
     var effect = blurEffect
     var usedShader = false
     if (renderer == "shaderGlass" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -272,7 +700,7 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
       }
     }
     val r = (blurRenderer as? NativeBlurRenderer) ?: NativeBlurRenderer().also { blurRenderer = it }
-    r.draw(canvas, source, offsetX, offsetY, w, h, radius, liveMix, effect)
+    r.draw(canvas, source, offsetX + left, offsetY + top, w, h, radius, liveMix, effect)
     activeRenderer = if (usedShader) "shaderGlass" else "nativeBlur"
     return true
   }
@@ -280,6 +708,16 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
 
   // watches touches without consuming them, RN touchables keep working
   override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+    if (morphActive) {
+      // the open menu takes every touch, a closing one lets them through to the app
+      if (!menuActive) return false
+      handleMenuTouch(ev)
+      return true
+    }
+    if (menuTrigger && handleTrigger(ev)) {
+      super.dispatchTouchEvent(ev)
+      return true
+    }
     if (draggable) handleDrag(ev)
     if (interactive) {
       when (ev.actionMasked) {

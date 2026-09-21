@@ -3,19 +3,21 @@ import {
   useGlassCapabilities,
   useGlassQuality,
   type GlassQuality,
-} from 'expo-adaptive-glass';
+} from '@rbayuokt/expo-adaptive-glass';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Pills } from '../components/Pills';
-import { useQualityControl } from '../components/QualityControl';
+import { useGlassSettings } from '../components/GlassSettings';
 import { Screen, Section } from '../components/Screen';
 import { useTheme } from '../theme';
 
 const OPTIONS: readonly GlassQuality[] = ['auto', 'ultra', 'high', 'medium', 'low', 'minimal'];
 
 export function QualityScreen() {
-  const { quality, setQuality } = useQualityControl();
+  const { settings, update } = useGlassSettings();
+  const { quality } = settings;
+  const setQuality = (q: GlassQuality) => update({ quality: q });
   const state = useGlassQuality();
   const caps = useGlassCapabilities();
   const theme = useTheme();

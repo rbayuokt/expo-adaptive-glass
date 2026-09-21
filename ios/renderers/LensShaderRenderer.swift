@@ -38,6 +38,7 @@ final class LensShaderRenderer: NSObject, MTKViewDelegate {
   var uniforms = LensUniforms()
   private let queue: MTLCommandQueue
   private var texture: MTLTexture?
+  private var pixels: [UInt8] = []
 
   init?(frame: CGRect) {
     guard let device = Self.device, Self.pipeline != nil, let queue = device.makeCommandQueue() else { return nil }
@@ -58,43 +59,50 @@ final class LensShaderRenderer: NSObject, MTKViewDelegate {
 
   /// once per press, never per frame
   func load(from source: UIView, scale: CGFloat) -> Bool {
-    guard let device = Self.device, source.bounds.width > 0, source.bounds.height > 0 else { return false }
-    let format = UIGraphicsImageRendererFormat()
-    format.scale = scale
-    format.opaque = false
-    // the wide-colour default is a float format the texture upload can't take
-    format.preferredRange = .standard
-    let image = UIGraphicsImageRenderer(bounds: source.bounds, format: format).image { _ in
+    load(size: source.bounds.size, scale: scale) { _ in
       source.drawHierarchy(in: source.bounds, afterScreenUpdates: false)
     }
-    guard let cgImage = image.cgImage else { return false }
+  }
 
-    // MTKTextureLoader rejects renderer output with "image decoding failed"
-    let w = cgImage.width
-    let h = cgImage.height
-    let descriptor = MTLTextureDescriptor.texture2DDescriptor(
-      pixelFormat: .rgba8Unorm, width: w, height: h, mipmapped: false)
-    descriptor.usage = .shaderRead
-    guard let texture = device.makeTexture(descriptor: descriptor) else { return false }
-    var pixels = [UInt8](repeating: 0, count: w * h * 4)
+  // MTKTextureLoader "Image decoding failed" tai, akhirnya upload manual. jangan balik ke loader
+  /// Draws straight into the texture in UIKit coordinates. Reuses it while the size is the same,
+  /// so small content like a switch track can be redrawn while it changes.
+  @discardableResult
+  func load(size: CGSize, scale: CGFloat, draw: (CGContext) -> Void) -> Bool {
+    guard let device = Self.device, size.width > 0, size.height > 0 else { return false }
+    let w = Int((size.width * scale).rounded(.up))
+    let h = Int((size.height * scale).rounded(.up))
+    if texture?.width != w || texture?.height != h {
+      let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+        pixelFormat: .rgba8Unorm, width: w, height: h, mipmapped: false)
+      descriptor.usage = .shaderRead
+      texture = device.makeTexture(descriptor: descriptor)
+      pixels = [UInt8](repeating: 0, count: w * h * 4)
+    }
+    guard let texture else { return false }
     let drawn: Bool = pixels.withUnsafeMutableBytes { buffer in
       guard
         let context = CGContext(
           data: buffer.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
           space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
       else { return false }
-      context.draw(cgImage, in: CGRect(x: 0, y: 0, width: w, height: h))
+      context.clear(CGRect(x: 0, y: 0, width: w, height: h))
+      context.translateBy(x: 0, y: CGFloat(h))
+      context.scaleBy(x: scale, y: -scale)
+      UIGraphicsPushContext(context)
+      draw(context)
+      UIGraphicsPopContext()
       return true
     }
     guard drawn else { return false }
     texture.replace(region: MTLRegionMake2D(0, 0, w, h), mipmapLevel: 0, withBytes: pixels, bytesPerRow: w * 4)
-    self.texture = texture
     uniforms.texSize = SIMD2(Float(w), Float(h))
     return true
   }
 
   func release() {
     texture = nil
+    pixels = []
   }
 
   func render() {

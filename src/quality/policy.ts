@@ -265,6 +265,8 @@ export interface SurfaceDemand {
   previous?: SurfaceAllocation;
   /** keep `previous` (clamped to the ceiling) instead of re-ranking */
   locked?: boolean;
+  /** short-lived glass above everything, e.g. an open menu. Gets the ceiling, never moves others */
+  overlay?: boolean;
 }
 
 export interface AllocationInput {
@@ -305,7 +307,8 @@ export function allocate(input: AllocationInput): AllocationResult {
   const ceilingLevel = levelOf(ceiling);
   const maxLive = Math.min(input.maxLiveSurfaces, POLICY.tiers[ceiling].maxLive);
 
-  const auto = input.surfaces.filter((s) => s.requestedQuality === 'auto');
+  const overlays = input.surfaces.filter((s) => s.overlay);
+  const auto = input.surfaces.filter((s) => s.requestedQuality === 'auto' && !s.overlay);
   const demand = auto.reduce(
     (sum, s) =>
       sum + surfaceCost(s.coverage, ceiling, rendererFor(ceiling, platformCeiling), s.interactive),
@@ -332,7 +335,7 @@ export function allocate(input: AllocationInput): AllocationResult {
 
   // pinned surfaces skip the budget but still count against it
   for (const s of input.surfaces) {
-    if (s.requestedQuality !== 'auto') assign(s, s.requestedQuality);
+    if (s.requestedQuality !== 'auto' && !s.overlay) assign(s, s.requestedQuality);
   }
 
   // same priority, same tier: a list of cards never ends up half glass, half acrylic
@@ -374,6 +377,15 @@ export function allocate(input: AllocationInput): AllocationResult {
     }
     const q = qualityAt(chosen);
     members.forEach((s) => assign(s, q));
+  }
+
+  // last, so opening or closing one never re-plans what's behind it
+  for (const s of overlays) {
+    const q =
+      s.requestedQuality === 'auto'
+        ? ceiling
+        : qualityAt(Math.min(levelOf(s.requestedQuality), ceilingLevel));
+    assign(s, q);
   }
 
   return { allocations, pressure, budgetLimited, liveLimited, cost };

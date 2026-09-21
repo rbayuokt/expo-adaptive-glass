@@ -2,10 +2,10 @@ import UIKit
 
 /// iOS 26+ system glass through the public UIGlassEffect API.
 enum SystemGlassRenderer {
-  static func makeEffect(tint: UIColor?, intensity: CGFloat, interactive: Bool) -> UIVisualEffect? {
+  static func makeEffect(tint: UIColor?, intensity: CGFloat, clear: Bool = false, interactive: Bool) -> UIVisualEffect? {
     #if compiler(>=6.2)
     if #available(iOS 26.0, *), GlassCapabilityDetector.supportsSystemGlass {
-      let effect = UIGlassEffect(style: .regular)
+      let effect = UIGlassEffect(style: clear ? .clear : .regular)
       effect.tintColor = tint?.withAlphaComponent(0.15 + 0.45 * intensity)
       effect.isInteractive = interactive
       return effect
