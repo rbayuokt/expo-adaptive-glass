@@ -45,6 +45,8 @@ export const NativeBackdropView: ComponentType<ViewProps> | null =
 export interface NativeLensViewProps extends ViewProps {
   selectedIndex: number;
   lensStyle: 'glass' | 'pill';
+  restPill: boolean;
+  pillColor: number | null;
   refraction: boolean;
   tintColor: number | null;
   tintScheme: 'system' | 'light' | 'dark';

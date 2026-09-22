@@ -11,6 +11,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Diagnostics } from '../components/Diagnostics';
+import { Pills } from '../components/Pills';
 import { Screen, Section } from '../components/Screen';
 import { useTheme } from '../theme';
 
@@ -19,6 +20,7 @@ const TINTS = ['#ff375f', '#30d158', '#0a84ff', '#ffd60a'];
 export function BasicsScreen() {
   const theme = useTheme();
   const [presses, setPresses] = useState(0);
+  const [bar, setBar] = useState<(typeof BARS)[number]>('lens + pill');
   const [touching, setTouching] = useState(false);
   const [tab, setTab] = useState(0);
   const [airplane, setAirplane] = useState(true);
@@ -51,7 +53,12 @@ export function BasicsScreen() {
       </Section>
 
       <Section title="Tab bar">
-        <GlassTabBar selectedIndex={tab} onSelect={setTab}>
+        <GlassTabBar
+          selectedIndex={tab}
+          onSelect={setTab}
+          lens={bar !== 'pill only'}
+          selection={bar === 'lens only' ? 'none' : 'pill'}
+          selectionColor={bar === 'pill only' ? 'rgba(91,91,240,0.35)' : undefined}>
           {TABS.map(([icon, label], i) => {
             const color = i === tab ? theme.accent : theme.text;
             return (
@@ -62,8 +69,13 @@ export function BasicsScreen() {
             );
           })}
         </GlassTabBar>
+        <Pills options={BARS} value={bar} onChange={setBar} label={(v) => v} />
         <Text style={[styles.p, { color: theme.muted }]}>
-          Hold a tab to lift the lens, drag it across, let go on another tab.
+          {bar === 'lens + pill'
+            ? 'Hold a tab to lift the lens, drag it across, let go on another tab.'
+            : bar === 'lens only'
+              ? 'selection="none": nothing is marked until you hold a tab.'
+              : 'lens={false} with selectionColor, a tinted highlight and no lens.'}
         </Text>
       </Section>
 
@@ -210,6 +222,8 @@ export function BasicsScreen() {
     </Screen>
   );
 }
+
+const BARS = ['lens + pill', 'lens only', 'pill only'] as const;
 
 const TABS = [
   ['home', 'Home'],

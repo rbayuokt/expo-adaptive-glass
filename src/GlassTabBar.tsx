@@ -1,5 +1,5 @@
 import React, { Children } from 'react';
-import { Pressable, StyleSheet, View, useColorScheme } from 'react-native';
+import { Pressable, StyleSheet, View, processColor, useColorScheme } from 'react-native';
 
 import { GlassSurface, parseTint } from './GlassSurface';
 import { NativeLensView } from './NativeGlassView';
@@ -15,12 +15,17 @@ export function GlassTabBar({
   tint = 'system',
   cornerRadius = 999,
   intensity = 0.7,
+  lens = true,
+  selection = 'pill',
+  selectionColor,
   style,
   ...rest
 }: GlassTabBarProps) {
   const caps = useGlassCapabilities();
   const scheme = useColorScheme();
   const { tintScheme, tintColor } = parseTint(tint);
+  const pill = selectionColor ? processColor(selectionColor) : null;
+  const pillTint = typeof pill === 'number' ? pill : null;
   const tabs = Children.toArray(children);
 
   // glass behind the row, not around it, so the lens can bulge past the bar
@@ -34,7 +39,7 @@ export function GlassTabBar({
     />
   );
 
-  if (!NativeLensView) {
+  if (!NativeLensView || !lens) {
     const dark = tintScheme === 'dark' || (tintScheme === 'system' && scheme === 'dark');
     return (
       <View accessibilityRole="tablist" collapsable={false} style={[styles.bar, style]} {...rest}>
@@ -47,10 +52,12 @@ export function GlassTabBar({
             onPress={() => onSelect(i)}
             style={[
               styles.tab,
-              i === selectedIndex && {
-                borderRadius: 999,
-                backgroundColor: dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.55)',
-              },
+              i === selectedIndex &&
+                selection !== 'none' && {
+                  borderRadius: 999,
+                  backgroundColor:
+                    selectionColor ?? (dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.55)'),
+                },
             ]}>
             {tab}
           </Pressable>
@@ -69,6 +76,8 @@ export function GlassTabBar({
         selectedIndex={selectedIndex}
         // the lens is cheap, so low tiers keep it. Only the bending follows `refraction`
         lensStyle={caps.quality === 'minimal' ? 'pill' : 'glass'}
+        restPill={selection === 'pill'}
+        pillColor={pillTint}
         refraction={caps.lensRefraction}
         tintColor={tintColor}
         tintScheme={nativeScheme(tintScheme, scheme)}

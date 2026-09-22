@@ -440,6 +440,9 @@ into the pill on the nearest tab. JS hears `onSelect(index)` once, on release.
 | `tint` | `'system'` | Same as `GlassSurface` |
 | `cornerRadius` | `999` | Capsule |
 | `intensity` | `0.7` | Background glass intensity |
+| `lens` | `true` | `false` skips the magnifying lens |
+| `selection` | `'pill'` | What marks the selected tab at rest. `'none'` leaves it unmarked until it's held |
+| `selectionColor` | | Colour of that mark, used as given. Leave it out for the translucent default |
 
 How the lens is drawn:
 
@@ -449,6 +452,11 @@ How the lens is drawn:
 - iOS renders the tab row to a Metal texture once per press, then only the shader's uniforms
   change while the lens moves. Same lens profile as Android. Without refraction, or without
   Metal, it falls back to a scaled `snapshotView`.
+- `lens={false}` turns the lens off for good and leaves the plain highlight behind the selected
+  tab. `selection="none"` drops that highlight instead and keeps the lens, so the bar marks
+  nothing until a tab is held. Both off means the icon colour is the only cue.
+- `selectionColor` paints that highlight, alpha included, in place of the translucent white or
+  black. It follows `tint` when you leave it out, so the default bar is unchanged.
 - The magnified copy stays opaque while the lens settles, shrinking onto the real tabs, so
   nothing blinks on release.
 - The lens is cheap, so it shows on every tier except `minimal`. Bending only runs where
@@ -490,7 +498,8 @@ With plain React Navigation it's the same two props on `Tab.Navigator`.
   the current tab still sends it (handy for scroll-to-top).
 - The bar floats over the screens and sits above the bottom safe-area inset. Give scrolling
   content some bottom padding so the last rows can scroll out from under it. Pass `style` to
-  change its position, `tint` and `intensity` for the glass.
+  change its position, `tint` and `intensity` for the glass, `lens={false}` to drop the
+  magnifier, `selection="none"` to drop the resting highlight and `selectionColor` to paint it.
 - `screenLayout` with `GlassScreenBackdrop` is what makes the bar blur the screens on Android
   (see [step 4 of the quick start](#4-give-android-something-to-blur)). On iOS it's a plain `View`, so
   leaving it out only costs the Android blur. `screenLayout` needs React Navigation 7 or an
@@ -749,7 +758,7 @@ The bottom bar is the library's own `GlassTabBar`.
 | Inspect | Device facts and runtime state |
 | Settings | Global glass settings (Tinted / Clear, a clarity slider, quality, the provider toggles) and About |
 
-Inside Home, Basics has the tab bar lens, switches, a left and a right `GlassMenu` (one with
+Inside Home, Basics has the tab bar lens with a lens / pill / colour switcher, switches, a left and a right `GlassMenu` (one with
 nested submenus) and a `GlassLens` over a photo. Merge has joining, splitting, a draggable
 circle and a detaching + button, and Nav runs a real React Navigation bottom-tabs navigator with
 `GlassNavigationTabBar`.

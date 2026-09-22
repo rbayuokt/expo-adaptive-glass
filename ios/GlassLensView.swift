@@ -9,6 +9,10 @@ final class GlassLensView: ExpoView, UIGestureRecognizerDelegate {
 
   var selectedIndex = 0
   var lensStyle = "glass"
+  // false leaves the selected tab unmarked until it is held
+  var restPill = true
+  // set by the app, used as given. nil keeps the translucent default
+  var pillColor: UIColor?
   var refraction = false
   var glassTint: UIColor?
   var tintScheme = "system"
@@ -155,7 +159,8 @@ final class GlassLensView: ExpoView, UIGestureRecognizerDelegate {
     let dark = traitCollection.userInterfaceStyle == .dark
     // white would vanish on a light bar
     pill.backgroundColor =
-      glassTint?.withAlphaComponent(0.3) ?? (dark ? UIColor(white: 1, alpha: 0.16) : UIColor(white: 0, alpha: 0.07))
+      pillColor ?? glassTint?.withAlphaComponent(0.3)
+      ?? (dark ? UIColor(white: 1, alpha: 0.16) : UIColor(white: 0, alpha: 0.07))
     // transparent white, UIColor.clear is black and greys the fade
     let clear = UIColor(white: 1, alpha: 0).cgColor
     lensRim.colors = [
@@ -205,7 +210,7 @@ final class GlassLensView: ExpoView, UIGestureRecognizerDelegate {
     CATransaction.setDisableActions(true)
 
     pill.frame = rect
-    pill.alpha = 1 - press
+    pill.alpha = restPill ? 1 - press : 0
     pill.layer.cornerRadius = radius
 
     let lensUp = press > 0.001 && magnified != nil
