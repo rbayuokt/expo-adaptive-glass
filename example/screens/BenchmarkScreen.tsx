@@ -18,14 +18,17 @@ const COUNTS = [1, 5, 10, 20, 30] as const;
 const MODES = { auto: 'auto', best: 'ultra', blur: 'medium', acrylic: 'low' } as const;
 type Mode = keyof typeof MODES;
 const DURATION_MS = 10_000;
+// lets the tier settle after the surfaces change before sampling
+const WARMUP_MS = 2_000;
 
 interface Result {
   platform: string;
   os: string;
   mode: Mode;
   count: number;
-  renderer: string;
-  quality: string;
+  // counted from native, the tiles' own quality prop doesn't show in the app-wide state
+  liveSurfaces: number;
+  visibleSurfaces: number;
   avgFps: number;
   avgFrameMs: number;
   worstFrameMs: number;
@@ -40,17 +43,40 @@ export function BenchmarkScreen() {
   const [mode, setMode] = useState<Mode>('auto');
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<Result[]>([]);
+  const [queue, setQueue] = useState<[Mode, (typeof COUNTS)[number]][]>([]);
   const samples = useRef<GlassPerformanceMetrics[]>([]);
+  const sampling = useRef(false);
   const m = useGlassPerformance();
 
   useEffect(() => {
-    if (running && m.averageFrameTimeMs > 0) samples.current.push(m);
-  }, [m, running]);
+    if (sampling.current && m.averageFrameTimeMs > 0) samples.current.push(m);
+  }, [m]);
 
-  const start = () => {
+  // runs the queued configurations one after another
+  useEffect(() => {
+    if (running || queue.length === 0) return;
+    const [[nextMode, nextCount], ...rest] = queue;
+    setMode(nextMode);
+    setCount(nextCount);
+    setQueue(rest);
+    start(nextMode, nextCount);
+  }, [queue, running]);
+
+  const runAll = () => {
+    const all: [Mode, (typeof COUNTS)[number]][] = [];
+    for (const md of Object.keys(MODES) as Mode[]) for (const c of COUNTS) all.push([md, c]);
+    setResults([]);
+    setQueue(all);
+  };
+
+  const start = (mode: Mode, count: number) => {
     samples.current = [];
     setRunning(true);
     setTimeout(() => {
+      sampling.current = true;
+    }, WARMUP_MS);
+    setTimeout(() => {
+      sampling.current = false;
       setRunning(false);
       const s = samples.current;
       if (!s.length) return;
@@ -63,8 +89,8 @@ export function BenchmarkScreen() {
         os: d?.osVersion ?? String(Platform.Version),
         mode,
         count,
-        renderer: last.renderer,
-        quality: last.quality,
+        liveSurfaces: Math.round(avg((x) => x.liveSurfaceCount)),
+        visibleSurfaces: Math.round(avg((x) => x.visibleSurfaceCount)),
         avgFps: Math.round(avg((x) => x.approximateFps)),
         avgFrameMs: Math.round(avg((x) => x.averageFrameTimeMs) * 100) / 100,
         worstFrameMs: Math.max(...s.map((x) => x.worstRecentFrameTimeMs)),
@@ -75,14 +101,14 @@ export function BenchmarkScreen() {
       // paste these rows into the README benchmark table
       console.log('[benchmark]', JSON.stringify(r));
       setResults((rs) => [r, ...rs]);
-    }, DURATION_MS);
+    }, WARMUP_MS + DURATION_MS);
   };
 
   const quality: GlassQuality = MODES[mode];
   return (
     <Screen
       title="Benchmark"
-      subtitle="Runs 10 s over the animated backdrop. Results are logged as JSON for the README table."
+      subtitle="Runs 10 s over the animated backdrop after a 2 s warm-up. Run all walks every renderer and count. Results are logged as JSON."
       animated>
       <Section title="Surfaces">
         <Pills options={COUNTS} value={count} onChange={setCount} />
@@ -90,11 +116,20 @@ export function BenchmarkScreen() {
       <Section title="Renderer">
         <Pills options={Object.keys(MODES) as Mode[]} value={mode} onChange={setMode} />
       </Section>
-      <Pressable disabled={running} onPress={start}>
-        <GlassSurface priority="critical" interactive tint={theme.accent} style={styles.run}>
-          <Text style={styles.runText}>{running ? 'Running…' : 'Run 10 s'}</Text>
-        </GlassSurface>
-      </Pressable>
+      <View style={styles.buttons}>
+        <Pressable style={styles.button} disabled={running} onPress={() => start(mode, count)}>
+          <GlassSurface priority="critical" interactive tint={theme.accent} style={styles.run}>
+            <Text style={styles.runText}>{running ? 'Running…' : 'Run 10 s'}</Text>
+          </GlassSurface>
+        </Pressable>
+        <Pressable style={styles.button} disabled={running || queue.length > 0} onPress={runAll}>
+          <GlassSurface priority="critical" interactive tint={theme.accent} style={styles.run}>
+            <Text style={styles.runText}>
+              {queue.length > 0 || running ? `${queue.length} left` : 'Run all'}
+            </Text>
+          </GlassSurface>
+        </Pressable>
+      </View>
       <Diagnostics />
       <View style={styles.grid}>
         {Array.from({ length: count }, (_, i) => (
@@ -112,8 +147,8 @@ export function BenchmarkScreen() {
           <GlassSurface priority="high" style={styles.results}>
             {results.map((r, i) => (
               <Text key={i} style={[styles.result, { color: theme.text }]}>
-                {r.count}× {r.mode} → {r.renderer}/{r.quality} · {r.avgFps} fps · {r.avgFrameMs} ms
-                · {r.droppedPct}% dropped
+                {r.count}× {r.mode} → {r.liveSurfaces}/{r.visibleSurfaces} live · {r.avgFps} fps ·{' '}
+                {r.avgFrameMs} ms · {r.droppedPct}% dropped
               </Text>
             ))}
           </GlassSurface>
@@ -124,6 +159,8 @@ export function BenchmarkScreen() {
 }
 
 const styles = StyleSheet.create({
+  buttons: { flexDirection: 'row', gap: 10 },
+  button: { flex: 1 },
   run: { paddingVertical: 14, alignItems: 'center' },
   runText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
