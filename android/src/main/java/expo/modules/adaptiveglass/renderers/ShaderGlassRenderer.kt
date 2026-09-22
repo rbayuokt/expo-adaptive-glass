@@ -106,12 +106,13 @@ class ShaderGlassRenderer {
         float2 l = normalize(light - size * 0.5 + 0.0001);
         float facing = max(dot(n, l), 0.0);
         float backing = max(-dot(n, l), 0.0);
-        float edge = pow(x, 6.0);
+        // tight to the rim, a wide band glowed along the whole lit side
+        float edge = pow(x, 14.0);
         float spec = rim * (1.0 + 0.5 * press) * edge *
           (0.9 * pow(facing, 3.0) + 0.25 * pow(backing, 3.0));
         float2 lp = coord - light;
         float spot = lightStrength * exp(-dot(lp, lp) / (0.12 * size.x * size.y + 1.0));
-        color.rgb += half3(spec * 0.55 + spot * 0.32) * color.a;
+        color.rgb += half3(spec * 0.3 + spot * 0.32) * color.a;
         // prism flare while pressed, a thin rim band whose hue follows the edge direction
         float band = pow(x, 4.0) * (1.0 - 0.6 * pow(x, 16.0));
         float ang = atan(n.y, n.x);

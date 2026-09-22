@@ -225,14 +225,15 @@ final class GlassGroupView: ExpoView {
         alphaBuffer[m + 1] = a
         alphaBuffer[m + 2] = a
         alphaBuffer[m + 3] = a
-        // rim light, brightest facing top-left
-        if d > -3 {
+        // thin even rim like a single surface's, only leaning toward the top-left. A thick glossy
+        // band made merged shapes look like plastic next to iOS 26 glass
+        if d > -2 {
           let gx = field(px + 1, py) - field(px - 1, py)
           let gy = field(px, py + 1) - field(px, py - 1)
           let len = max((gx * gx + gy * gy).squareRoot(), 0.0001)
           let facing = max(0, -(gx / len) * 0.64 - (gy / len) * 0.77)
-          let band = max(0, 1 - abs(d + 1) / 2)
-          let v = UInt8(max(0, min(1, band * (0.25 + 0.7 * facing) * (dark ? 0.6 : 0.9))) * 255)
+          let band = max(0, 1 - abs(d + 0.5))
+          let v = UInt8(max(0, min(1, band * (0.4 + 0.3 * facing) * (dark ? 0.5 : 0.6))) * 255)
           let o = (y * w + x) * 4
           lightBuffer[o] = v
           lightBuffer[o + 1] = v

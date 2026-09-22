@@ -20,11 +20,15 @@ class AcrylicRenderer(private val density: Float) {
     val minimal: Boolean,
     // 0 frosted to 1 clear
     val clarity: Float = 0f,
+    val ultra: Boolean = false,
   )
 
   private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
   private val sheenPaint = Paint(Paint.ANTI_ALIAS_FLAG)
   private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+  // stacked strokes, brightest at the rim and fading inward. The lit edge of thick glass at ultra
+  private val bezelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+  private val bezelRect = RectF()
   private val specPaint = Paint(Paint.ANTI_ALIAS_FLAG)
   private val rect = RectF()
   private val specMatrix = Matrix()
@@ -78,6 +82,17 @@ class AcrylicRenderer(private val density: Float) {
       canvas.drawRoundRect(rect, radius, radius, specPaint)
     }
 
+    if (s.ultra && !s.opaque) {
+      for (i in BEZEL_WIDTHS.indices) {
+        val bw = BEZEL_WIDTHS[i] * density
+        bezelPaint.strokeWidth = bw
+        bezelPaint.color = withAlpha(light, BEZEL_ALPHAS[i] * (if (s.dark) 0.7f else 1f))
+        bezelRect.set(0f, 0f, w.toFloat(), h.toFloat())
+        bezelRect.inset(bw / 2, bw / 2)
+        canvas.drawRoundRect(bezelRect, maxOf(0f, radius - bw / 2), maxOf(0f, radius - bw / 2), bezelPaint)
+      }
+    }
+
     val half = borderPaint.strokeWidth / 2
     rect.inset(half, half)
     canvas.drawRoundRect(rect, radius - half, radius - half, borderPaint)
@@ -96,8 +111,17 @@ class AcrylicRenderer(private val density: Float) {
     // lit top-left only, a full rim reads as a white border on clear glass
     borderPaint.shader = if (s.opaque) {
       LinearGradient(0f, 0f, w.toFloat(), h.toFloat(), withAlpha(light, 0.9f), withAlpha(light, 0.5f), Shader.TileMode.CLAMP)
+    } else if (s.ultra) {
+      // ultra gets a soft rim all the way round like iOS 26 clear glass, brightest top-left
+      val top = if (s.dark) 0.45f else 0.35f
+      val rest = if (s.dark) 0.14f else 0.15f
+      LinearGradient(
+        0f, 0f, w.toFloat(), h.toFloat(),
+        intArrayOf(withAlpha(light, top), withAlpha(light, rest), withAlpha(light, rest)),
+        floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP,
+      )
     } else {
-      val top = (if (s.dark) 0.6f else 0.5f) * (if (s.minimal) 0.6f else 1f)
+      val top = (if (s.dark) 0.45f else 0.38f) * (if (s.minimal) 0.6f else 1f)
       LinearGradient(
         0f, 0f, w.toFloat(), h.toFloat(),
         intArrayOf(withAlpha(light, top), withAlpha(light, 0f), withAlpha(light, 0f)),
@@ -112,6 +136,9 @@ class AcrylicRenderer(private val density: Float) {
   }
 
   companion object {
+    private val BEZEL_WIDTHS = floatArrayOf(1.5f, 3.5f, 7f)
+    // lower than iOS: the stacked strokes read stronger on Android at the same alpha
+    private val BEZEL_ALPHAS = floatArrayOf(0.055f, 0.035f, 0.02f)
     fun withAlpha(color: Int, alpha: Float) =
       (color and 0x00FFFFFF) or ((alpha.coerceIn(0f, 1f) * 255).toInt() shl 24)
 

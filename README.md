@@ -1,4 +1,16 @@
+<p align="center">
+  <img src="docs/cover-expo-adaptive-glass.png" alt="expo-adaptive-glass: adaptive glass for Expo and React Native" width="100%" />
+</p>
+
 # Expo Adaptive Glass
+
+<p align="center">
+  <img src="docs/demo.gif" alt="Android, iOS below 26 and iOS 26 side by side running the example app" width="960" />
+</p>
+
+<p align="center">
+  <sub><a href="https://drive.google.com/file/d/1fec0-qALdWTe5r8A7KD5pWr7T9kcV6vs/view">Watch the original video</a> in full quality.</sub>
+</p>
 
 > The React Native ecosystem has become increasingly iOS-centric, and older iOS versions and
 > Android often end up as an afterthought. To me that drifts away from what cross-platform was
@@ -28,8 +40,8 @@ slider and `GlassLens` are real shaders too, Metal on iOS and AGSL on Android, s
 magnify what's underneath instead of just scaling a snapshot, with a thin prism flare along
 the rim while you hold them.
 
-NOT AFFILIATED WITH APPLE OR GOOGLE. ON IOS 26 IT USES APPLE'S PUBLIC GLASS APIS, AND NO
-PRIVATE API IS USED ON EITHER PLATFORM.
+***NOT AFFILIATED WITH APPLE OR GOOGLE. ON IOS 26 IT USES APPLE'S PUBLIC GLASS APIS, AND NO
+PRIVATE API IS USED ON EITHER PLATFORM.***
 
 ## Quick start
 
