@@ -4,6 +4,7 @@ import {
   Text,
   View,
   useColorScheme,
+  type ColorValue,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -51,6 +52,12 @@ export interface GlassNavigationTabBarProps {
   style?: StyleProp<ViewStyle>;
   tint?: GlassTint;
   intensity?: number;
+  /** false skips the magnifying lens, the selected tab is only marked by `selection` */
+  lens?: boolean;
+  /** what marks the selected tab while nothing is held */
+  selection?: 'pill' | 'none';
+  /** colour of that mark, used as given */
+  selectionColor?: ColorValue;
 }
 
 /**
@@ -65,6 +72,9 @@ export function GlassNavigationTabBar({
   style,
   tint,
   intensity,
+  lens,
+  selection,
+  selectionColor,
 }: GlassNavigationTabBarProps) {
   const dark = useColorScheme() === 'dark';
 
@@ -88,7 +98,14 @@ export function GlassNavigationTabBar({
     <View
       pointerEvents="box-none"
       style={[styles.wrap, { bottom: (insets?.bottom ?? 0) + 8 }, style]}>
-      <GlassTabBar selectedIndex={state.index} onSelect={select} tint={tint} intensity={intensity}>
+      <GlassTabBar
+        selectedIndex={state.index}
+        onSelect={select}
+        tint={tint}
+        intensity={intensity}
+        lens={lens}
+        selection={selection}
+        selectionColor={selectionColor}>
         {state.routes.map((route, i) => {
           const { options } = descriptors[route.key] ?? { options: {} };
           const focused = i === state.index;

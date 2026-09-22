@@ -31,6 +31,10 @@ class GlassLensView(context: Context, appContext: AppContext) : ExpoView(context
 
   var selectedIndex = 0
   var lensStyle = "glass"
+  // false leaves the selected tab unmarked until it is held
+  var restPill = true
+  // set by the app, used as given. null keeps the translucent default
+  var pillColor: Int? = null
   var refraction = false
   var tint: Int? = null
   var tintScheme = "system"
@@ -173,12 +177,15 @@ class GlassLensView(context: Context, appContext: AppContext) : ExpoView(context
     computeRect(press)
     val r = rect.height() / 2
 
-    if (press < 0.999f) {
+    if (press < 0.999f && restPill) {
       // white vanishes on a light bar, so light mode gets a dark pill
-      val base = tint ?: if (dark) Color.WHITE else Color.BLACK
-      val a = (if (tint != null) 0.3f else if (dark) 0.16f else 0.07f) * (1f - press)
       fillPaint.shader = null
-      fillPaint.color = AcrylicRenderer.withAlpha(base, a)
+      val fade = 1f - press
+      fillPaint.color = pillColor?.let { AcrylicRenderer.withAlpha(it, Color.alpha(it) / 255f * fade) }
+        ?: run {
+          val base = tint ?: if (dark) Color.WHITE else Color.BLACK
+          AcrylicRenderer.withAlpha(base, (if (tint != null) 0.3f else if (dark) 0.16f else 0.07f) * fade)
+        }
       canvas.drawRoundRect(rect, r, r, fillPaint)
     }
 

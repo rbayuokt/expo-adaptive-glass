@@ -13,6 +13,8 @@ class ExpoAdaptiveGlassLensModule : Module() {
 
       Prop("selectedIndex") { view: GlassLensView, value: Int -> view.selectedIndex = value }
       Prop("lensStyle") { view: GlassLensView, value: String -> view.lensStyle = value }
+      Prop("restPill") { view: GlassLensView, value: Boolean -> view.restPill = value }
+      Prop("pillColor") { view: GlassLensView, value: Int? -> view.pillColor = value }
       Prop("refraction") { view: GlassLensView, value: Boolean -> view.refraction = value }
       Prop("tintColor") { view: GlassLensView, value: Int? -> view.tint = value }
       Prop("tintScheme") { view: GlassLensView, value: String -> view.tintScheme = value }

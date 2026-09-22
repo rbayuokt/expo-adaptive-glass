@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { StyleProp, ViewProps, ViewStyle } from 'react-native';
+import type { ColorValue, StyleProp, ViewProps, ViewStyle } from 'react-native';
 
 export type EffectiveGlassQuality = 'ultra' | 'high' | 'medium' | 'low' | 'minimal';
 
@@ -143,6 +143,12 @@ export interface GlassTabBarProps extends Omit<ViewProps, 'children'> {
   tint?: GlassTint;
   cornerRadius?: number;
   intensity?: number;
+  /** false skips the magnifying lens, the selected tab is only marked by `selection` */
+  lens?: boolean;
+  /** what marks the selected tab while nothing is held */
+  selection?: 'pill' | 'none';
+  /** colour of that mark, used as given. Defaults to a translucent white or black */
+  selectionColor?: ColorValue;
 }
 
 export interface GlassGroupProps extends ViewProps {
