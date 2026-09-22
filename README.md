@@ -175,6 +175,10 @@ Expo Router tabs, `GlassScreenBackdrop` does this for every screen at once, as i
 
 ### 5. Glass bottom tabs with Expo Router or React Navigation
 
+<p align="center">
+  <img src="docs/tabbar.gif" alt="The glass tab bar lens dragged across tabs" width="100%" />
+</p>
+
 For a tab app you don't build the bar yourself. The `/navigation` entry has a glass tab bar that
 plugs into the bottom tabs navigator, the same one Expo Router's `<Tabs>` uses. Two props do it,
 `tabBar` swaps in the glass bar and `screenLayout` wraps every screen in a backdrop, so you can
@@ -208,6 +212,25 @@ export default function TabLayout() {
 ```
 
 With React Navigation it's the same two props on `Tab.Navigator`.
+
+The bar works with nothing else set. When you want it a bit different, `GlassNavigationTabBar`
+takes optional props:
+
+```tsx
+tabBar={(props) => (
+  <GlassNavigationTabBar
+    {...props}
+    tint="#0a84ff"                    // glass tint, a colour or 'system' | 'light' | 'dark'
+    intensity={0.7}                   // how much glass
+    lens={false}                      // drop the magnifying lens
+    selection="none"                  // nothing marked until a tab is held
+    selectionColor="rgba(91,91,240,0.35)"  // colour of the selected pill
+    style={{ marginHorizontal: 24 }}  // position of the floating bar
+  />
+)}
+```
+
+Full list in [the tab bar section](#glasstabbar).
 
 ```tsx
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
