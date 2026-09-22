@@ -12,7 +12,7 @@ export function GlassProvider({
   adaptivePerformance = true,
   respectLowPowerMode = true,
   respectReduceTransparency = true,
-  clarity = 0,
+  clarity = 1,
 }: GlassProviderProps) {
   const options: ManagerOptions = {
     quality,

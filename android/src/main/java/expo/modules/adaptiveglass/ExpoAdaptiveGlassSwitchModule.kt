@@ -14,6 +14,7 @@ class ExpoAdaptiveGlassSwitchModule : Module() {
       Prop("disabled") { view: GlassSwitchView, value: Boolean -> view.disabled = value }
       Prop("onColor") { view: GlassSwitchView, value: Int? -> view.onColor = value }
       Prop("lens") { view: GlassSwitchView, value: Boolean -> view.lens = value }
+      Prop("scheme") { view: GlassSwitchView, value: String -> view.scheme = value }
 
       OnViewDidUpdateProps { view: GlassSwitchView ->
         view.propsDidUpdate()

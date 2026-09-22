@@ -11,6 +11,8 @@ public class ExpoAdaptiveGlassSliderModule: Module {
       Prop("disabled") { (view, value: Bool) in view.disabled = value }
       Prop("fillColor") { (view, value: UIColor?) in view.fillColor = value }
       Prop("lens") { (view, value: Bool) in view.lens = value }
+      // Android only, iOS follows the window's style
+      Prop("scheme") { (_: GlassSliderView, _: String) in }
 
       OnViewDidUpdateProps { view in
         view.propsDidUpdate()

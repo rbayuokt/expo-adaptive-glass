@@ -32,6 +32,8 @@ class GlassSwitchView(context: Context, appContext: AppContext) : ExpoView(conte
   var disabled = false
   var onColor: Int? = null
   var lens = true
+  // resolved light / dark from JS, see isNight
+  var scheme = "system"
 
   private val density = resources.displayMetrics.density
   // thumb position 0..1, press 0..1
@@ -105,8 +107,7 @@ class GlassSwitchView(context: Context, appContext: AppContext) : ExpoView(conte
     springs.start()
   }
 
-  private fun isDark() =
-    (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+  private fun isDark() = isNight(scheme)
 
   private fun trackColor(pos: Float): Int {
     val on = onColor ?: Color.rgb(52, 199, 89)

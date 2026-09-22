@@ -32,6 +32,8 @@ export interface GlassCapabilities {
   renderer: GlassRenderer;
   liveBlur: boolean;
   refraction: boolean;
+  /** The lenses (tab bar, GlassLens) bend their own texture, so this only needs a lens shader. */
+  lensRefraction: boolean;
   dynamicHighlights: boolean;
   maxBlurRadius: number;
   maxLiveSurfaces: number;
@@ -101,7 +103,7 @@ export interface GlassProviderProps {
   respectLowPowerMode?: boolean;
   respectReduceTransparency?: boolean;
   /**
-   * 0 frosted (default) to 1 clear, for every glass inside, like the Clear and Tinted setting
+   * 0 frosted to 1 clear (default), for every glass inside, like the Clear and Tinted setting
    * in iOS 26. Thins the tint and the blur. System glass on iOS 26 switches to Apple's clear
    * style from 0.5.
    */

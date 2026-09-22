@@ -34,6 +34,22 @@ const visible = (ids: string[], area: number) =>
   ids.map((id) => ({ id, area, renderer: 'nativeBlur' as const }));
 
 describe('GlassQualityManager scenarios', () => {
+  it('bends the lens on iOS below 26, where surfaces themselves cannot refract', () => {
+    const { m, tick } = setup('olderIphone');
+    m.register('a', desc());
+    tick({ surfaces: visible(['a'], 20000) });
+    const caps = m.getCapabilities();
+    expect(caps.renderer).toBe('nativeBlur');
+    expect(caps.refraction).toBe(false);
+    expect(['ultra', 'high']).toContain(caps.quality);
+    expect(caps.lensRefraction).toBe(true);
+  });
+
+  it('keeps the lens flat where there is no lens shader', () => {
+    const { m } = setup('lowEndAndroid');
+    expect(m.getCapabilities().lensRefraction).toBe(false);
+  });
+
   it('high-end phone + 1 surface → ultra', () => {
     const { m, tick } = setup('highEndIphone');
     m.register('a', desc());

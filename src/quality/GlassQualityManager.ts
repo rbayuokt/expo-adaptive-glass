@@ -395,6 +395,11 @@ export class GlassQualityManager {
       liveBlur: live,
       refraction:
         live && tier.refraction > 0 && (renderer === 'shaderGlass' || renderer === 'system'),
+      // Metal on every iOS, AGSL on Android 13+. Doesn't need to see behind the view
+      lensRefraction:
+        !reduceTransparency &&
+        tier.refraction > 0 &&
+        (this.device?.platform === 'ios' || !!this.device?.supportsShader),
       dynamicHighlights: tier.dynamicHighlights && !this.stats?.reduceMotion,
       maxBlurRadius: live ? tier.maxBlurRadius : 0,
       maxLiveSurfaces: live ? Math.min(tier.maxLive, this.options.maxLiveSurfaces) : 0,

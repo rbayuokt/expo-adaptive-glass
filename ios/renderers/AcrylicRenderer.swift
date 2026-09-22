@@ -21,7 +21,9 @@ final class AcrylicRenderer {
   private let fill = CALayer()
   private let sheen = CAGradientLayer()
   private let border = CAGradientLayer()
-  private let borderMask = CAShapeLayer()
+  // a bordered layer, not a stroked path: a UIBezierPath rounded rect curves differently from the
+  // continuous clip and shows as a second edge inside the glass
+  private let borderMask = CALayer()
   private let specular = CAGradientLayer()
   private var laidOutSize = CGSize.zero
   private var laidOutRadius: CGFloat = -1
@@ -35,8 +37,8 @@ final class AcrylicRenderer {
     // lit from the top-left, same as the Android shader
     border.startPoint = CGPoint(x: 0, y: 0)
     border.endPoint = CGPoint(x: 1, y: 1)
-    borderMask.fillColor = nil
-    borderMask.strokeColor = UIColor.black.cgColor
+    borderMask.borderColor = UIColor.black.cgColor
+    if #available(iOS 13.0, *) { borderMask.cornerCurve = .continuous }
     border.mask = borderMask
     specular.type = .radial
     specular.startPoint = CGPoint(x: 0.5, y: 0.5)
@@ -57,12 +59,9 @@ final class AcrylicRenderer {
       laidOutSize = bounds.size
       laidOutRadius = radius
       let width = max(1 / scale, 0.75)
-      borderMask.lineWidth = width
-      borderMask.path =
-        UIBezierPath(
-          roundedRect: bounds.insetBy(dx: width / 2, dy: width / 2),
-          cornerRadius: max(0, radius - width / 2)
-        ).cgPath
+      borderMask.frame = bounds
+      borderMask.borderWidth = width
+      borderMask.cornerRadius = radius
       let d = max(bounds.width, bounds.height) * 0.9
       specular.bounds = CGRect(x: 0, y: 0, width: d, height: d)
     }
@@ -82,9 +81,15 @@ final class AcrylicRenderer {
     let fillAlpha: CGFloat
     switch next.mode {
     case .system: fillAlpha = 0  // UIGlassEffect carries the tint itself
-    case .liveBlur: fillAlpha = ((next.dark ? 0.12 : 0.08) + 0.22 * i) * (1 - 0.8 * next.clarity)
+    // neutral frost clears with clarity. A colour tint gets stronger instead, or the frost and a
+    // sharper background wash it out
+    case .liveBlur:
+      fillAlpha =
+        next.tint == nil
+        ? ((next.dark ? 0.12 : 0.08) + 0.22 * i) * (1 - 0.6 * next.clarity)
+        : (0.25 + 0.35 * i) * (1 + 0.4 * next.clarity)
     // no blur under acrylic, so it only clears so far before text behind gets hard to read past
-    case .acrylic: fillAlpha = 0.62 + 0.28 * i - 0.3 * next.clarity
+    case .acrylic: fillAlpha = 0.62 + 0.28 * i - (next.tint == nil ? 0.3 * next.clarity : 0)
     case .opaque: fillAlpha = 0.97
     }
     fill.backgroundColor = base.withAlphaComponent(fillAlpha).cgColor
@@ -92,12 +97,22 @@ final class AcrylicRenderer {
     // highlights lean toward the tint instead of pure white
     let light = Self.highlight(tint: next.tint, dark: next.dark)
     let showDecor = next.mode != .system && !next.minimal
-    let sheenAlpha: CGFloat = showDecor ? (next.dark ? 0.12 : 0.32) * (0.5 + i) * (1 - 0.5 * next.clarity) : 0
+    // highlights stay at any clarity, they're what still reads as glass when clear
+    let sheenAlpha: CGFloat = showDecor ? (next.dark ? 0.1 : 0.2) * (0.5 + max(i, 0.5)) : 0
     sheen.colors = [light.withAlphaComponent(sheenAlpha).cgColor, light.withAlphaComponent(0).cgColor]
 
-    let top: CGFloat = next.mode == .opaque ? 0.9 : (next.dark ? 0.3 : 0.75)
-    let bottom: CGFloat = next.mode == .opaque ? 0.5 : (next.dark ? 0.06 : 0.22)
-    border.colors = [light.withAlphaComponent(top).cgColor, light.withAlphaComponent(bottom).cgColor]
+    // lit top-left only, a full rim reads as a white border on clear glass
+    if next.mode == .opaque {
+      border.colors = [light.withAlphaComponent(0.9).cgColor, light.withAlphaComponent(0.5).cgColor]
+      border.locations = nil
+    } else {
+      let top: CGFloat = next.dark ? 0.6 : 0.5
+      border.colors = [
+        light.withAlphaComponent(top).cgColor, light.withAlphaComponent(0).cgColor,
+        light.withAlphaComponent(0).cgColor,
+      ]
+      border.locations = [0, 0.45, 1]
+    }
     border.opacity = next.mode == .system ? 0 : (next.minimal ? 0.6 : 1)
 
     specular.colors = [

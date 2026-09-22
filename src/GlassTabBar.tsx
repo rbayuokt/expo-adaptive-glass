@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View, useColorScheme } from 'react-native';
 
 import { GlassSurface, parseTint } from './GlassSurface';
 import { NativeLensView } from './NativeGlassView';
+import { nativeScheme } from './context';
 import { useGlassCapabilities } from './hooks/useGlassCapabilities';
 import type { GlassTabBarProps } from './types';
 
@@ -68,9 +69,9 @@ export function GlassTabBar({
         selectedIndex={selectedIndex}
         // the lens is cheap, so low tiers keep it. Only the bending follows `refraction`
         lensStyle={caps.quality === 'minimal' ? 'pill' : 'glass'}
-        refraction={caps.refraction}
+        refraction={caps.lensRefraction}
         tintColor={tintColor}
-        tintScheme={tintScheme}
+        tintScheme={nativeScheme(tintScheme, scheme)}
         onTabSelect={(e) => onSelect(e.nativeEvent.index)}>
         {tabs.map((tab, i) => (
           // native side finds tab i by child index

@@ -124,6 +124,31 @@ final class GlassLensView: ExpoView, UIGestureRecognizerDelegate {
       return
     }
     settle(on: selectedIndex)
+    // the lens shows the row from press time, recapture once JS has mounted the new active colours
+    if magnified != nil {
+      DispatchQueue.main.async { [weak self] in self?.recaptureRow() }
+    }
+  }
+
+  private func recaptureRow() {
+    guard let copy = magnified, !pressing else { return }
+    // render the model layers, the last on-screen frame still has the old colours and the lens mask
+    let mask = itemsView.layer.mask
+    itemsView.layer.mask = nil
+    defer { itemsView.layer.mask = mask }
+    let layer = itemsView.layer
+    if usingShader, let shader = lensShader {
+      shader.load(size: itemsView.bounds.size, scale: screenScale) { layer.render(in: $0) }
+      shader.render()
+    } else {
+      let image = UIGraphicsImageRenderer(bounds: itemsView.bounds).image { layer.render(in: $0.cgContext) }
+      let fresh = UIImageView(image: image)
+      fresh.isUserInteractionEnabled = false
+      lens.insertSubview(fresh, aboveSubview: copy)
+      copy.removeFromSuperview()
+      magnified = fresh
+      placeMagnified(x: springs.value[0], scale: 1 + 0.2 * springs.value[1])
+    }
   }
 
   private func restyle() {

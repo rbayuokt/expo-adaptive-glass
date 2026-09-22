@@ -1,5 +1,21 @@
 # Expo Adaptive Glass
 
+> The React Native ecosystem has become increasingly iOS-centric, and older iOS versions and
+> Android often end up as an afterthought. To me that drifts away from what cross-platform was
+> supposed to mean. It should be a consistent experience on every platform, and when a platform
+> doesn't have the same API or capability, it deserves a proper fallback, not a worse version of
+> an iOS-first design.
+>
+> It should also be fair to the people using the app. Where I'm from, most people don't carry
+> the latest flagship, they use older or budget phones because that's what they can afford.
+> They deserve an app that looks good and runs smoothly too, not one that only shines on
+> expensive hardware.
+>
+> So this was built for platform parity and for every budget from the start. iOS 26 gets Apple's
+> own glass, and older iPhones and Android phones, including low-end ones, get their own
+> implementation of the same look and the same interactions, tuned to what each device can
+> actually handle.
+
 Adaptive glass for Expo and React Native. Get the iOS 26 Liquid Glass look on both iOS and
 Android, rendered natively. The adaptive part is what sets it apart. Every surface gets as much
 glass as the device can draw without dropping frames, so the same code looks right on a new
@@ -9,7 +25,8 @@ Under the hood, one `<GlassSurface>` renders Apple's own glass on iOS 26, live b
 refracting AGSL lens on Android 13+, and a clean acrylic material on phones that can't afford
 either. You never pick the renderer yourself. The magnifying lenses in the tab bar, switch,
 slider and `GlassLens` are real shaders too, Metal on iOS and AGSL on Android, so they bend and
-magnify what's underneath instead of just scaling a snapshot.
+magnify what's underneath instead of just scaling a snapshot, with a thin prism flare along
+the rim while you hold them.
 
 NOT AFFILIATED WITH APPLE OR GOOGLE. ON IOS 26 IT USES APPLE'S PUBLIC GLASS APIS, AND NO
 PRIVATE API IS USED ON EITHER PLATFORM.
@@ -322,7 +339,7 @@ drops to plain blur and stays there instead of crashing.
 | `adaptivePerformance` | `true` | React to measured frame times |
 | `respectLowPowerMode` | `true` | Cap at `medium` in Low Power Mode and Battery Saver |
 | `respectReduceTransparency` | `true` | Opaque material when the setting is on |
-| `clarity` | `0` | `0` frosted to `1` clear, for every glass inside, like the Clear and Tinted setting in iOS 26 |
+| `clarity` | `1` | `1` clear to `0` frosted, for every glass inside, like the Clear and Tinted setting in iOS 26 |
 
 It's optional. Surfaces outside a provider share one with these defaults.
 
@@ -330,16 +347,21 @@ It's optional. Surfaces outside a provider share one with these defaults.
 choice as iOS 26 Settings from one state value:
 
 ```tsx
-const [clarity, setClarity] = useState(0);
+const [clarity, setClarity] = useState(1);
 
 <GlassProvider clarity={clarity}>
   <App />
 </GlassProvider>
 ```
 
-From `0.5` the iOS 26 system glass switches to Apple's own clear style, and iOS 15 to 25 uses
-the thinner blur material. On Android the blur radius drops to a fifth at `1`. Acrylic has no
-blur under it, so it only clears partway. Components that put text on a tinted surface can read
+Glass starts clear, like iOS 26 does out of the box. Pass `clarity={0}` for the frosted, tinted
+look, or anything in between. From `0.5` the iOS 26 system glass switches to Apple's own clear
+style. iOS 15 to 25 blurs less and less, and Android's blur radius drops to a bit under half at
+`1`. Some blur always stays, so clear glass still softens what's behind it and catches the light
+at its edges. Acrylic has no blur under it, so it only clears partway.
+A colour `tint` holds its colour at any clarity. Clarity clears the neutral frost, and a tinted
+surface gets a little stronger as it clears, since a sharper background would otherwise drown it
+out. Clear glass with `tint="#0a84ff"` is still clearly blue. Components that put text on a tinted surface can read
 the value with `useGlassClarity()`.
 
 ### `<GlassSurface>`
@@ -778,7 +800,9 @@ view, so its own background paints over the glass. Put colors on the children or
   touches, since React Native doesn't know it moved. Move surfaces with Reanimated if they need
   to stay put.
 - iOS frame timing only sees GPU trouble once it delays the app.
-- iOS blur strength can't be set directly, tiers switch between two system materials.
+- iOS below 26 has no blur radius API. The blur is parked part of the way through a paused
+  `UIViewPropertyAnimator`, which is public API, and re-parked when the app returns from the
+  background.
 - No native drop shadow, it would show through the glass. Use React Native shadow styles.
 - Only the New Architecture has been run.
 - The scoring weights and budget are guesses until the benchmark table has numbers.

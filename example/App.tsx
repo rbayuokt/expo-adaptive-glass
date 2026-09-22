@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { GlassProvider, GlassSurface, GlassTabBar } from '@rbayuokt/expo-adaptive-glass';
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Appearance, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TopSpace } from './components/Layout';
@@ -117,9 +117,18 @@ export default function App() {
     []
   );
   const value = useMemo(() => ({ settings, update }), [settings, update]);
+  // app-wide, so native views and the glass follow it too
+  useEffect(() => {
+    Appearance.setColorScheme(settings.theme === 'system' ? 'unspecified' : settings.theme);
+  }, [settings.theme]);
   return (
     <SafeAreaProvider>
-      <GlassProvider {...settings}>
+      <GlassProvider
+        quality={settings.quality}
+        clarity={settings.clarity}
+        adaptivePerformance={settings.adaptivePerformance}
+        respectLowPowerMode={settings.respectLowPowerMode}
+        respectReduceTransparency={settings.respectReduceTransparency}>
         <GlassSettings.Provider value={value}>
           <StatusBar style="auto" />
           <Shell />

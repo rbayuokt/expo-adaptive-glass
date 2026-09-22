@@ -181,7 +181,7 @@ final class LensShaderRenderer: NSObject, MTKViewDelegate {
       float2 texAt = u.center + (at - mid) / u.magnification;
       float4 color = tex.sample(s, texAt / u.texSize);
       if (u.chroma > 0.0 && bend > 0.5) {
-        float2 spread = n * (u.chroma * bend * 0.08) / u.magnification;
+        float2 spread = n * (u.chroma * bend * 0.16) / u.magnification;
         color.r = tex.sample(s, (texAt - spread) / u.texSize).r;
         color.b = tex.sample(s, (texAt + spread) / u.texSize).b;
       }
@@ -192,6 +192,11 @@ final class LensShaderRenderer: NSObject, MTKViewDelegate {
       float edge = pow(x, 6.0);
       float spec = edge * (0.9 * pow(facing, 3.0) + 0.25 * pow(backing, 3.0)) * u.press;
       color.rgb += spec * 0.55 * color.a;
+      // prism flare while pressed, a thin rim band whose hue follows the edge direction
+      float band = pow(x, 4.0) * (1.0 - 0.6 * pow(x, 16.0));
+      float ang = atan2(n.y, n.x);
+      float3 iri = 0.5 + 0.5 * cos(ang * 2.0 + float3(0.0, 2.094, 4.189));
+      color.rgb += iri * band * 0.16 * u.press * u.chroma * color.a;
       return color;
     }
     """

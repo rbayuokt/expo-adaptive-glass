@@ -2,18 +2,18 @@ import {
   GlassSlider,
   GlassSurface,
   GlassSwitch,
-  useGlassClarity,
   type GlassQuality,
 } from '@rbayuokt/expo-adaptive-glass';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { useGlassSettings } from '../components/GlassSettings';
+import { useGlassSettings, type ThemeChoice } from '../components/GlassSettings';
 import { Pills } from '../components/Pills';
 import { Screen, Section } from '../components/Screen';
 import { useTheme } from '../theme';
 import { AboutSection } from './AboutSection';
 
+const THEMES: readonly ThemeChoice[] = ['system', 'light', 'dark'];
 const QUALITIES: readonly GlassQuality[] = ['auto', 'ultra', 'high', 'medium', 'low', 'minimal'];
 
 export function SettingsScreen() {
@@ -22,8 +22,6 @@ export function SettingsScreen() {
   const t = { color: theme.text };
   const muted = { color: theme.muted };
   const clear = settings.clarity >= 0.5;
-  // clear glass barely tints, so white on the accent would wash out
-  const onAccent = useGlassClarity() >= 0.5 ? theme.accent : '#fff';
 
   return (
     <Screen
@@ -31,6 +29,13 @@ export function SettingsScreen() {
       subtitle="Everything here goes to GlassProvider and applies to the whole app.">
       <Section title="Glass">
         <GlassSurface priority="high" style={styles.card}>
+          <Text style={[styles.label, t]}>Theme</Text>
+          <Pills
+            options={THEMES}
+            value={settings.theme}
+            onChange={(theme) => update({ theme })}
+            label={(v) => v[0].toUpperCase() + v.slice(1)}
+          />
           <Text style={[styles.label, t]}>Appearance</Text>
           <View style={styles.presets}>
             {(['Tinted', 'Clear'] as const).map((name) => {
@@ -46,7 +51,7 @@ export function SettingsScreen() {
                     tint={active ? theme.accent : 'system'}
                     intensity={active ? 0.9 : 0.4}
                     style={styles.presetGlass}>
-                    <Text style={[styles.presetText, { color: active ? onAccent : theme.text }]}>
+                    <Text style={[styles.presetText, { color: active ? '#fff' : theme.text }]}>
                       {name}
                     </Text>
                   </GlassSurface>

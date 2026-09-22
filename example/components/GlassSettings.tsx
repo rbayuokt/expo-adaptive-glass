@@ -2,7 +2,10 @@ import type { GlassQuality } from '@rbayuokt/expo-adaptive-glass';
 import { createContext, useContext } from 'react';
 
 // what the Settings tab edits, fed straight into GlassProvider
+export type ThemeChoice = 'system' | 'light' | 'dark';
+
 export interface GlassSettingsValue {
+  theme: ThemeChoice;
   quality: GlassQuality;
   clarity: number;
   adaptivePerformance: boolean;
@@ -11,8 +14,9 @@ export interface GlassSettingsValue {
 }
 
 export const DEFAULT_SETTINGS: GlassSettingsValue = {
+  theme: 'system',
   quality: 'auto',
-  clarity: 0,
+  clarity: 1,
   adaptivePerformance: true,
   respectLowPowerMode: true,
   respectReduceTransparency: true,

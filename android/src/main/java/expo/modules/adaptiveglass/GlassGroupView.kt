@@ -175,11 +175,7 @@ class GlassGroupView(context: Context, appContext: AppContext) : ExpoView(contex
       nodeRects[i * 4 + 3] = rects[i * 4 + 3] - top
     }
 
-    val dark = when (tintScheme) {
-      "dark" -> true
-      "light" -> false
-      else -> (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-    }
+    val dark = isNight(tintScheme)
     val base = tint ?: if (dark) Color.rgb(28, 28, 32) else Color.rgb(247, 247, 250)
     val tintAlpha = if (source != null) (if (dark) 0.14f else 0.1f) + 0.22f * intensity else 0.62f + 0.28f * intensity
 
