@@ -15,6 +15,7 @@ final class AcrylicRenderer {
     var minimal: Bool
     // 0 frosted to 1 clear
     var clarity: CGFloat = 0
+    var ultra = false
   }
 
   let root = CALayer()
@@ -24,6 +25,11 @@ final class AcrylicRenderer {
   // a bordered layer, not a stroked path: a UIBezierPath rounded rect curves differently from the
   // continuous clip and shows as a second edge inside the glass
   private let borderMask = CALayer()
+  // stacked borders, brightest at the rim and fading inward. Fakes the lit edge of thick glass at
+  // ultra, where iOS < 26 can't bend what's behind
+  private let bezel = (0..<3).map { _ in CALayer() }
+  private static let bezelWidths: [CGFloat] = [1.5, 3.5, 7]
+  private static let bezelAlphas: [CGFloat] = [0.08, 0.05, 0.03]
   private let specular = CAGradientLayer()
   private var laidOutSize = CGSize.zero
   private var laidOutRadius: CGFloat = -1
@@ -44,6 +50,10 @@ final class AcrylicRenderer {
     specular.startPoint = CGPoint(x: 0.5, y: 0.5)
     specular.endPoint = CGPoint(x: 1, y: 1)
     specular.opacity = 0
+    for layer in bezel {
+      if #available(iOS 13.0, *) { layer.cornerCurve = .continuous }
+      root.addSublayer(layer)
+    }
     [fill, sheen, border, specular].forEach(root.addSublayer)
   }
 
@@ -62,6 +72,11 @@ final class AcrylicRenderer {
       borderMask.frame = bounds
       borderMask.borderWidth = width
       borderMask.cornerRadius = radius
+      for (i, layer) in bezel.enumerated() {
+        layer.frame = bounds
+        layer.cornerRadius = radius
+        layer.borderWidth = Self.bezelWidths[i]
+      }
       let d = max(bounds.width, bounds.height) * 0.9
       specular.bounds = CGRect(x: 0, y: 0, width: d, height: d)
     }
@@ -101,12 +116,25 @@ final class AcrylicRenderer {
     let sheenAlpha: CGFloat = showDecor ? (next.dark ? 0.1 : 0.2) * (0.5 + max(i, 0.5)) : 0
     sheen.colors = [light.withAlphaComponent(sheenAlpha).cgColor, light.withAlphaComponent(0).cgColor]
 
-    // lit top-left only, a full rim reads as a white border on clear glass
+    let bezelOn = next.ultra && next.mode != .system && next.mode != .opaque
+    for (i, layer) in bezel.enumerated() {
+      layer.borderColor = light.withAlphaComponent(bezelOn ? Self.bezelAlphas[i] * (next.dark ? 0.7 : 1) : 0).cgColor
+    }
     if next.mode == .opaque {
       border.colors = [light.withAlphaComponent(0.9).cgColor, light.withAlphaComponent(0.5).cgColor]
       border.locations = nil
+    } else if next.ultra {
+      // ultra gets a soft rim all the way round like iOS 26 clear glass, brightest top-left
+      let top: CGFloat = next.dark ? 0.45 : 0.35
+      let rest: CGFloat = next.dark ? 0.14 : 0.15
+      border.colors = [
+        light.withAlphaComponent(top).cgColor, light.withAlphaComponent(rest).cgColor,
+        light.withAlphaComponent(rest).cgColor,
+      ]
+      border.locations = [0, 0.5, 1]
     } else {
-      let top: CGFloat = next.dark ? 0.6 : 0.5
+      // lit top-left only, a full rim reads as a white border on clear glass
+      let top: CGFloat = next.dark ? 0.45 : 0.38
       border.colors = [
         light.withAlphaComponent(top).cgColor, light.withAlphaComponent(0).cgColor,
         light.withAlphaComponent(0).cgColor,

@@ -284,14 +284,14 @@ final class ExpoAdaptiveGlassView: ExpoView, UIGestureRecognizerDelegate {
     let mode: AcrylicRenderer.Mode =
       opaqueMaterial ? .opaque : target == "system" ? .system : target == "nativeBlur" ? .liveBlur : .acrylic
     material.apply(
-      .init(mode: mode, dark: dark, tint: glassTint, intensity: intensity, minimal: quality == "minimal", clarity: clarity),
+      .init(mode: mode, dark: dark, tint: glassTint, intensity: intensity, minimal: quality == "minimal", clarity: clarity, ultra: quality == "ultra"),
       animated: animated)
 
     // only inputs that change pixels: reassigning an identical effect can flash for a frame
     let key: String
     switch target {
     case "system": key = "system|\(String(describing: glassTint))|\(intensity)|\(clarity >= 0.5)"
-    case "nativeBlur": key = "nativeBlur|\(blur)|\(clarity)"
+    case "nativeBlur": key = "nativeBlur|\(blur)|\(clarity)|\(quality)"
     default: key = "acrylic"
     }
     guard key != appliedEffectKey else { return }
@@ -320,8 +320,9 @@ final class ExpoAdaptiveGlassView: ExpoView, UIGestureRecognizerDelegate {
     }
     // system materials can't blur less, so the blur is parked part way in, lighter with tier and clarity
     if target == "nativeBlur" {
-      // the floor keeps clear glass reading as glass
-      partialBlur.apply(effect, amount: min(1, max(0.35, (1.15 - 0.7 * blur) * (1 - 0.45 * clarity))), to: effectView)
+      // the floor keeps clear glass reading as glass. Ultra goes lower, closer to iOS 26 clear glass
+      let floor: CGFloat = quality == "ultra" ? 0.18 : 0.35
+      partialBlur.apply(effect, amount: min(1, max(floor, (1.15 - 0.7 * blur) * (1 - 0.45 * clarity))), to: effectView)
       return
     }
     partialBlur.stop()

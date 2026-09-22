@@ -15,6 +15,7 @@ __tests__
 /android/.gradle/
 /ios/build/
 /example/
+/docs/
 
 # Dev-only config, not needed by consumers
 /eslint.config.cjs

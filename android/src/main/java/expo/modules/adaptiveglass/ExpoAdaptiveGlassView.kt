@@ -226,7 +226,7 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
 
   private fun applyProps(animated: Boolean) {
     val dark = isNight(tintScheme)
-    material.configure(AcrylicRenderer.Style(dark, tint, intensity, opaque, quality == "minimal", clarity))
+    material.configure(AcrylicRenderer.Style(dark, tint, intensity, opaque, quality == "minimal", clarity, quality == "ultra"))
 
     val wantsLive = !opaque && (renderer == "nativeBlur" || renderer == "shaderGlass") &&
       Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -669,7 +669,9 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !canvas.isHardwareAccelerated) return false
     val source = backdrop?.node ?: return false
     // clearer glass blurs less
-    val blurEffect = NativeBlurRenderer.blur(blur * (1f - 0.55f * clarity) * MAX_BLUR_DP * density)
+    // ultra clears further, closer to iOS 26 clear glass
+    val clear = if (quality == "ultra") 0.7f else 0.55f
+    val blurEffect = NativeBlurRenderer.blur(blur * (1f - clear * clarity) * MAX_BLUR_DP * density)
     var effect = blurEffect
     var usedShader = false
     if (renderer == "shaderGlass" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
