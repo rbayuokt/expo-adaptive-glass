@@ -1,5 +1,21 @@
 # Expo Adaptive Glass
 
+> The React Native ecosystem has become increasingly iOS-centric, and older iOS versions and
+> Android often end up as an afterthought. To me that drifts away from what cross-platform was
+> supposed to mean. It should be a consistent experience on every platform, and when a platform
+> doesn't have the same API or capability, it deserves a proper fallback, not a worse version of
+> an iOS-first design.
+>
+> It should also be fair to the people using the app. Where I'm from, most people don't carry
+> the latest flagship, they use older or budget phones because that's what they can afford.
+> They deserve an app that looks good and runs smoothly too, not one that only shines on
+> expensive hardware.
+>
+> So this was built for platform parity and for every budget from the start. iOS 26 gets Apple's
+> own glass, and older iPhones and Android phones, including low-end ones, get their own
+> implementation of the same look and the same interactions, tuned to what each device can
+> actually handle.
+
 Adaptive glass for Expo and React Native. Get the iOS 26 Liquid Glass look on both iOS and
 Android, rendered natively. The adaptive part is what sets it apart. Every surface gets as much
 glass as the device can draw without dropping frames, so the same code looks right on a new
