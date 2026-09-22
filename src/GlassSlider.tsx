@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
-import { StyleSheet, processColor } from 'react-native';
+import { StyleSheet, processColor, useColorScheme } from 'react-native';
+import { nativeScheme } from './context';
 
 import { NativeSliderView } from './NativeGlassView';
 import { useGlassCapabilities } from './hooks/useGlassCapabilities';
@@ -19,6 +20,7 @@ export function GlassSlider({
   ...rest
 }: GlassSliderProps) {
   const caps = useGlassCapabilities();
+  const colorScheme = useColorScheme();
   const color = fillColor ? processColor(fillColor) : null;
   const span = maximumValue - minimumValue || 1;
   // native drags in 0..1, onValueChange only fires when the stepped value changes
@@ -42,6 +44,7 @@ export function GlassSlider({
       disabled={disabled}
       fillColor={typeof color === 'number' ? color : null}
       lens={caps.quality !== 'minimal'}
+      scheme={nativeScheme('system', colorScheme)}
       onValueChange={(e) => {
         const v = toValue(e.nativeEvent.value);
         if (v !== last.current) {

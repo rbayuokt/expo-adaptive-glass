@@ -11,6 +11,8 @@ public class ExpoAdaptiveGlassSwitchModule: Module {
       Prop("disabled") { (view, value: Bool) in view.disabled = value }
       Prop("onColor") { (view, value: UIColor?) in view.onColor = value }
       Prop("lens") { (view, value: Bool) in view.lens = value }
+      // Android only, iOS follows the window's style
+      Prop("scheme") { (_: GlassSwitchView, _: String) in }
 
       OnViewDidUpdateProps { view in
         view.propsDidUpdate()

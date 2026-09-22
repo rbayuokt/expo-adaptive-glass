@@ -1,4 +1,4 @@
-import { GlassSurface, useGlassClarity } from '@rbayuokt/expo-adaptive-glass';
+import { GlassSurface } from '@rbayuokt/expo-adaptive-glass';
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -16,8 +16,6 @@ export function Pills<T extends string | number>({
   label?: (v: T) => string;
 }) {
   const theme = useTheme();
-  // clear glass barely tints, so white on the accent would wash out
-  const onAccent = useGlassClarity() >= 0.5 ? theme.accent : '#fff';
   return (
     <View style={styles.row}>
       {options.map((o) => {
@@ -30,9 +28,7 @@ export function Pills<T extends string | number>({
               intensity={active ? 0.9 : 0.4}
               tint={active ? theme.accent : 'system'}
               style={styles.pill}>
-              <Text style={[styles.text, { color: active ? onAccent : theme.text }]}>
-                {label(o)}
-              </Text>
+              <Text style={[styles.text, { color: active ? '#fff' : theme.text }]}>{label(o)}</Text>
             </GlassSurface>
           </Pressable>
         );

@@ -27,7 +27,7 @@ export function GlassLens({
       lensHeight={lensHeight}
       magnification={magnification}
       lift={lift}
-      refraction={caps.refraction}
+      refraction={caps.lensRefraction}
       disabled={disabled}
       {...rest}>
       {children}

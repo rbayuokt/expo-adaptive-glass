@@ -43,8 +43,14 @@ class AcrylicRenderer(private val density: Float) {
     val i = next.intensity
     baseColor = next.tint?.let { it or (0xFF shl 24) }
       ?: if (next.dark) Color.rgb(30, 30, 34) else Color.rgb(247, 247, 250)
-    val c = next.clarity
-    liveFillAlpha = ((if (next.dark) 0.14f else 0.1f) + 0.22f * i) * (1f - 0.8f * c)
+    // neutral frost clears with clarity. A colour tint gets stronger instead, or the frost and a
+    // sharper background wash it out
+    val c = if (next.tint != null) 0f else next.clarity
+    liveFillAlpha = if (next.tint != null) {
+      (0.25f + 0.35f * i) * (1f + 0.4f * next.clarity)
+    } else {
+      ((if (next.dark) 0.14f else 0.1f) + 0.22f * i) * (1f - 0.6f * c)
+    }
     // no blur under acrylic, so it only clears so far before text behind gets hard to read past
     acrylicFillAlpha = if (next.opaque) 0.97f else 0.62f + 0.28f * i - 0.3f * c
     light = highlight(next.tint, next.dark)
@@ -80,19 +86,24 @@ class AcrylicRenderer(private val density: Float) {
   private fun rebuildShaders(w: Int, h: Int, s: Style) {
     shaderW = w
     shaderH = h
-    val sheenAlpha = (if (s.dark) 0.12f else 0.32f) * (0.5f + s.intensity) * (1f - 0.5f * s.clarity)
+    // highlights stay at any clarity, they're what still reads as glass when clear
+    val sheenAlpha = (if (s.dark) 0.1f else 0.2f) * (0.5f + maxOf(s.intensity, 0.5f))
     sheenPaint.shader = LinearGradient(
       0f, 0f, 0f, h * 0.6f,
       withAlpha(light, sheenAlpha), withAlpha(light, 0f), Shader.TileMode.CLAMP,
     )
-    val top = if (s.opaque) 0.9f else if (s.dark) 0.3f else 0.75f
-    val bottom = if (s.opaque) 0.5f else if (s.dark) 0.06f else 0.22f
     borderPaint.strokeWidth = maxOf(1f, 0.75f * density)
-    // lit from the top-left like the shader
-    borderPaint.shader = LinearGradient(
-      0f, 0f, w.toFloat(), h.toFloat(),
-      withAlpha(light, if (s.minimal) top * 0.6f else top), withAlpha(light, bottom), Shader.TileMode.CLAMP,
-    )
+    // lit top-left only, a full rim reads as a white border on clear glass
+    borderPaint.shader = if (s.opaque) {
+      LinearGradient(0f, 0f, w.toFloat(), h.toFloat(), withAlpha(light, 0.9f), withAlpha(light, 0.5f), Shader.TileMode.CLAMP)
+    } else {
+      val top = (if (s.dark) 0.6f else 0.5f) * (if (s.minimal) 0.6f else 1f)
+      LinearGradient(
+        0f, 0f, w.toFloat(), h.toFloat(),
+        intArrayOf(withAlpha(light, top), withAlpha(light, 0f), withAlpha(light, 0f)),
+        floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP,
+      )
+    }
     // unit radius at the origin, moved with a local matrix so touches don't allocate
     specPaint.shader = RadialGradient(
       0f, 0f, 1f,

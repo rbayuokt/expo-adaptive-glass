@@ -72,6 +72,7 @@ export interface NativeSwitchViewProps extends ViewProps {
   disabled: boolean;
   onColor: number | null;
   lens: boolean;
+  scheme: 'system' | 'light' | 'dark';
   onValueChange: (event: NativeSyntheticEvent<{ value: boolean }>) => void;
 }
 
@@ -97,6 +98,7 @@ export interface NativeSliderViewProps extends ViewProps {
   disabled: boolean;
   fillColor: number | null;
   lens: boolean;
+  scheme: 'system' | 'light' | 'dark';
   onValueChange: (event: NativeSyntheticEvent<{ value: number }>) => void;
   onSlidingComplete: (event: NativeSyntheticEvent<{ value: number }>) => void;
 }

@@ -6,7 +6,8 @@ enum SystemGlassRenderer {
     #if compiler(>=6.2)
     if #available(iOS 26.0, *), GlassCapabilityDetector.supportsSystemGlass {
       let effect = UIGlassEffect(style: clear ? .clear : .regular)
-      effect.tintColor = tint?.withAlphaComponent(0.15 + 0.45 * intensity)
+      // Apple's clear style lets more through, so a tint needs more weight to hold its colour
+      effect.tintColor = tint?.withAlphaComponent(min(0.9, (0.15 + 0.45 * intensity) * (clear ? 1.5 : 1)))
       effect.isInteractive = interactive
       return effect
     }

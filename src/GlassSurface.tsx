@@ -3,7 +3,7 @@ import { StyleSheet, View, processColor, useColorScheme } from 'react-native';
 
 import { warnMissingNative } from './ExpoAdaptiveGlassModule';
 import { NativeGlassView, type NativeGlassViewProps } from './NativeGlassView';
-import { clearer, useGlassClarity, useGlassManager } from './context';
+import { clearer, nativeScheme, useGlassClarity, useGlassManager } from './context';
 import type { SurfaceDescriptor } from './quality/GlassQualityManager';
 import type { GlassSurfaceProps, GlassTint } from './types';
 
@@ -58,7 +58,15 @@ export function GlassSurface({
     const dark = tintScheme === 'dark' || (tintScheme === 'system' && scheme === 'dark');
     return (
       <View
-        style={[shape, fallbackStyle(dark, clearer(intensity, clarity), tintColor), style]}
+        style={[
+          shape,
+          fallbackStyle(
+            dark,
+            tintColor !== null ? intensity : clearer(intensity, clarity),
+            tintColor
+          ),
+          style,
+        ]}
         {...rest}>
         {children}
       </View>
@@ -75,10 +83,12 @@ export function GlassSurface({
     shaderQuality: allocation.shaderQuality,
     opaque: allocation.opaque,
     reduceMotion: allocation.reduceMotion,
-    intensity: clearer(intensity, clarity),
+    // a colour tint is on purpose, clarity clears the frost around it but keeps the colour
+    intensity:
+      tintColor !== null ? Math.max(0, Math.min(1, intensity)) : clearer(intensity, clarity),
     clarity,
     tintColor,
-    tintScheme,
+    tintScheme: nativeScheme(tintScheme, scheme),
     cornerRadius,
     interactive,
     onInteractionStart,

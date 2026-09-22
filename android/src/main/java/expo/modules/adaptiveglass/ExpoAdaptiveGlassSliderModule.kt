@@ -14,6 +14,7 @@ class ExpoAdaptiveGlassSliderModule : Module() {
       Prop("disabled") { view: GlassSliderView, value: Boolean -> view.disabled = value }
       Prop("fillColor") { view: GlassSliderView, value: Int? -> view.fillColor = value }
       Prop("lens") { view: GlassSliderView, value: Boolean -> view.lens = value }
+      Prop("scheme") { view: GlassSliderView, value: String -> view.scheme = value }
 
       OnViewDidUpdateProps { view: GlassSliderView ->
         view.propsDidUpdate()

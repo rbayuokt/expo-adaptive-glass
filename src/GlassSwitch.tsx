@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, Switch, processColor } from 'react-native';
+import { StyleSheet, Switch, processColor, useColorScheme } from 'react-native';
+import { nativeScheme } from './context';
 
 import { NativeSwitchView } from './NativeGlassView';
 import { useGlassCapabilities } from './hooks/useGlassCapabilities';
@@ -15,6 +16,7 @@ export function GlassSwitch({
   ...rest
 }: GlassSwitchProps) {
   const caps = useGlassCapabilities();
+  const colorScheme = useColorScheme();
   const color = onColor ? processColor(onColor) : null;
 
   if (!NativeSwitchView) {
@@ -39,6 +41,7 @@ export function GlassSwitch({
       disabled={disabled}
       onColor={typeof color === 'number' ? color : null}
       lens={caps.quality !== 'minimal'}
+      scheme={nativeScheme('system', colorScheme)}
       onValueChange={(e) => onValueChange?.(e.nativeEvent.value)}
       {...rest}
     />

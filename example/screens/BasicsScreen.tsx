@@ -14,6 +14,8 @@ import { Diagnostics } from '../components/Diagnostics';
 import { Screen, Section } from '../components/Screen';
 import { useTheme } from '../theme';
 
+const TINTS = ['#ff375f', '#30d158', '#0a84ff', '#ffd60a'];
+
 export function BasicsScreen() {
   const theme = useTheme();
   const [presses, setPresses] = useState(0);
@@ -160,9 +162,20 @@ export function BasicsScreen() {
       </Section>
 
       <Section title="Custom tint">
+        <Text style={[styles.tintLabel, { color: theme.muted }]}>Solid, intensity 1</Text>
         <View style={styles.row}>
-          {['#ff375f', '#30d158', '#0a84ff', '#ffd60a'].map((c) => (
-            <GlassSurface key={c} tint={c} intensity={0.5} cornerRadius={20} style={styles.swatch}>
+          {TINTS.map((c) => (
+            <GlassSurface key={c} tint={c} intensity={1} cornerRadius={20} style={styles.swatch}>
+              <Text style={[styles.swatchText, t]}>{c}</Text>
+            </GlassSurface>
+          ))}
+        </View>
+        <Text style={[styles.tintLabel, { color: theme.muted }]}>
+          Mixed with glass, intensity 0.1
+        </Text>
+        <View style={styles.row}>
+          {TINTS.map((c) => (
+            <GlassSurface key={c} tint={c} intensity={0.1} cornerRadius={20} style={styles.swatch}>
               <Text style={[styles.swatchText, t]}>{c}</Text>
             </GlassSurface>
           ))}
@@ -228,6 +241,7 @@ const styles = StyleSheet.create({
   tabLabel: { fontSize: 11, fontWeight: '600' },
   swatch: { width: 76, height: 76, alignItems: 'center', justifyContent: 'center' },
   swatchText: { fontSize: 11, fontWeight: '600' },
+  tintLabel: { fontSize: 13 },
   half: { flex: 1, padding: 18, alignItems: 'center' },
   darkText: { color: '#111', fontWeight: '600' },
   lightText: { color: '#fff', fontWeight: '600' },

@@ -225,11 +225,7 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
   }
 
   private fun applyProps(animated: Boolean) {
-    val dark = when (tintScheme) {
-      "dark" -> true
-      "light" -> false
-      else -> (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-    }
+    val dark = isNight(tintScheme)
     material.configure(AcrylicRenderer.Style(dark, tint, intensity, opaque, quality == "minimal", clarity))
 
     val wantsLive = !opaque && (renderer == "nativeBlur" || renderer == "shaderGlass") &&
@@ -610,7 +606,7 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
     val v = highlightSpring.value
     val a = v[4].coerceIn(0f, 1f)
     if (a < 0.01f) return
-    val dark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+    val dark = isNight(tintScheme)
     highlightPaint.color = AcrylicRenderer.withAlpha(if (dark) Color.WHITE else Color.BLACK, (if (dark) 0.14f else 0.07f) * a)
     val r = 12f * density
     val x = v[0] + pullShiftX
@@ -673,7 +669,7 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || !canvas.isHardwareAccelerated) return false
     val source = backdrop?.node ?: return false
     // clearer glass blurs less
-    val blurEffect = NativeBlurRenderer.blur(blur * (1f - 0.8f * clarity) * MAX_BLUR_DP * density)
+    val blurEffect = NativeBlurRenderer.blur(blur * (1f - 0.55f * clarity) * MAX_BLUR_DP * density)
     var effect = blurEffect
     var usedShader = false
     if (renderer == "shaderGlass" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

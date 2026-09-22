@@ -16,7 +16,8 @@ final class GlassGroupView: ExpoView {
 
   // iOS < 26
   private let shape = UIView()
-  private let shapeBlur = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterial))
+  private let shapeBlur = UIVisualEffectView(effect: nil)
+  private let partialBlur = PartialBlur()
   private let shapeFill = UIView()
   private let shapeMask = CALayer()
   private let rim = CALayer()
@@ -62,7 +63,7 @@ final class GlassGroupView: ExpoView {
   override func layoutSubviews() {
     super.layoutSubviews()
     container.frame = bounds
-    shape.frame = bounds
+    shape.frame = bounds.insetBy(dx: -margin, dy: -margin)
     applyEffect()
   }
 
@@ -82,6 +83,9 @@ final class GlassGroupView: ExpoView {
 
   private var appliedSpacing: CGFloat?
 
+  // the smooth union bulges past the members, so draw past the group's bounds or it gets cut off
+  private var margin: CGFloat { max(spacing, 1) / 2 + 4 }
+
   private func applyEffect() {
     guard appliedSpacing != spacing else { return }
     appliedSpacing = spacing
@@ -96,6 +100,11 @@ final class GlassGroupView: ExpoView {
     }
     #endif
     shape.isHidden = systemMerging
+    // intensity already carries the provider's clarity
+    if !systemMerging {
+      partialBlur.apply(
+        UIBlurEffect(style: .systemUltraThinMaterial), amount: 0.25 + 0.5 * intensity, to: shapeBlur)
+    }
     members.forEach { $0.view?.setGrouped(!systemMerging) }
     updateLink()
   }
@@ -162,12 +171,14 @@ final class GlassGroupView: ExpoView {
       rim.contents = nil
       return
     }
-    // half resolution, the mask scales up smoothly and it's 4x less work
-    let step: CGFloat = 2
-    let w = Int((bounds.width / step).rounded(.up))
-    let h = Int((bounds.height / step).rounded(.up))
-    if alphaBuffer.count != w * h {
-      alphaBuffer = [UInt8](repeating: 0, count: w * h)
+    // 2 samples per point for a crisp edge, only the members' area and only when one moved
+    let scale = window?.screen.scale ?? UIScreen.main.scale
+    let step: CGFloat = 1 / min(scale, 2)
+    let canvas = bounds.insetBy(dx: -margin, dy: -margin)
+    let w = Int((canvas.width / step).rounded(.up))
+    let h = Int((canvas.height / step).rounded(.up))
+    if alphaBuffer.count != w * h * 4 {
+      alphaBuffer = [UInt8](repeating: 0, count: w * h * 4)
       lightBuffer = [UInt8](repeating: 0, count: w * h * 4)
     } else {
       alphaBuffer.withUnsafeMutableBytes { _ = $0.initializeMemory(as: UInt8.self, repeating: 0) }
@@ -195,19 +206,25 @@ final class GlassGroupView: ExpoView {
     }
 
     let area = rects.dropFirst().reduce(rects[0]) { $0.union($1) }.insetBy(dx: -k - step, dy: -k - step)
-    let x0 = max(0, Int(area.minX / step))
-    let x1 = min(w, Int((area.maxX / step).rounded(.up)))
-    let y0 = max(0, Int(area.minY / step))
-    let y1 = min(h, Int((area.maxY / step).rounded(.up)))
+    let x0 = max(0, Int((area.minX - canvas.minX) / step))
+    let x1 = min(w, Int(((area.maxX - canvas.minX) / step).rounded(.up)))
+    let y0 = max(0, Int((area.minY - canvas.minY) / step))
+    let y1 = min(h, Int(((area.maxY - canvas.minY) / step).rounded(.up)))
     guard x0 < x1, y0 < y1 else { return }
 
     for y in y0..<y1 {
       for x in x0..<x1 {
-        let px = (CGFloat(x) + 0.5) * step
-        let py = (CGFloat(y) + 0.5) * step
+        let px = canvas.minX + (CGFloat(x) + 0.5) * step
+        let py = canvas.minY + (CGFloat(y) + 0.5) * step
         let d = field(px, py)
         if d > step { continue }
-        alphaBuffer[y * w + x] = UInt8(max(0, min(1, 0.5 - d / step)) * 255)
+        // premultiplied white, the mask only reads the alpha
+        let a = UInt8(max(0, min(1, 0.5 - d / step)) * 255)
+        let m = (y * w + x) * 4
+        alphaBuffer[m] = a
+        alphaBuffer[m + 1] = a
+        alphaBuffer[m + 2] = a
+        alphaBuffer[m + 3] = a
         // rim light, brightest facing top-left
         if d > -3 {
           let gx = field(px + 1, py) - field(px - 1, py)
@@ -227,23 +244,18 @@ final class GlassGroupView: ExpoView {
 
     CATransaction.begin()
     CATransaction.setDisableActions(true)
-    shapeMask.frame = bounds
-    rim.frame = bounds
-    shapeMask.contents = Self.image(alphaBuffer, w, h, gray: true)
-    rim.contents = Self.image(lightBuffer, w, h, gray: false)
+    shapeMask.frame = shape.bounds
+    rim.frame = shape.bounds
+    shapeMask.contents = Self.image(alphaBuffer, w, h)
+    rim.contents = Self.image(lightBuffer, w, h)
     CATransaction.commit()
   }
 
-  private static func image(_ bytes: [UInt8], _ w: Int, _ h: Int, gray: Bool) -> CGImage? {
+  // RGBA only. An alpha-only image with a gray colour space isn't a valid combination, CGImage
+  // returns nil and the empty mask hides the whole merged shape
+  private static func image(_ bytes: [UInt8], _ w: Int, _ h: Int) -> CGImage? {
     let data = Data(bytes) as CFData
     guard let provider = CGDataProvider(data: data) else { return nil }
-    if gray {
-      // mask layers only read alpha
-      return CGImage(
-        width: w, height: h, bitsPerComponent: 8, bitsPerPixel: 8, bytesPerRow: w,
-        space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.alphaOnly.rawValue),
-        provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
-    }
     return CGImage(
       width: w, height: h, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: w * 4,
       space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),

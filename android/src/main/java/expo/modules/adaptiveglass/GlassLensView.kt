@@ -159,11 +159,7 @@ class GlassLensView(context: Context, appContext: AppContext) : ExpoView(context
     rect.set(cx - w / 2, height / 2f - lensH / 2, cx + w / 2, height / 2f + lensH / 2)
   }
 
-  private fun isDark() = when (tintScheme) {
-    "dark" -> true
-    "light" -> false
-    else -> (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-  }
+  private fun isDark() = isNight(tintScheme)
 
 
   override fun dispatchDraw(canvas: Canvas) {

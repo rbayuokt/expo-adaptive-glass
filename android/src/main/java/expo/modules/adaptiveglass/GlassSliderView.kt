@@ -33,6 +33,8 @@ class GlassSliderView(context: Context, appContext: AppContext) : ExpoView(conte
   var disabled = false
   var fillColor: Int? = null
   var lens = true
+  // resolved light / dark from JS, see isNight
+  var scheme = "system"
 
   private val density = resources.displayMetrics.density
   // thumb position 0..1, press 0..1
@@ -105,8 +107,7 @@ class GlassSliderView(context: Context, appContext: AppContext) : ExpoView(conte
     invalidate()
   }
 
-  private fun isDark() =
-    (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+  private fun isDark() = isNight(scheme)
 
   private fun computeThumb(pos: Float, press: Float) {
     val lensH = restH * 1.5f

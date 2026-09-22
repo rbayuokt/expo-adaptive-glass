@@ -56,6 +56,7 @@ final class ExpoAdaptiveGlassView: ExpoView, UIGestureRecognizerDelegate {
   private let effectView = UIVisualEffectView(effect: nil)
   private let material = AcrylicRenderer()
   private let materialView = UIView()
+  private let partialBlur = PartialBlur()
   // RN children, shifted so they stay put while a morph moves the glass
   private let contentHost = UIView()
   private var morphActive = false
@@ -290,7 +291,7 @@ final class ExpoAdaptiveGlassView: ExpoView, UIGestureRecognizerDelegate {
     let key: String
     switch target {
     case "system": key = "system|\(String(describing: glassTint))|\(intensity)|\(clarity >= 0.5)"
-    case "nativeBlur": key = "nativeBlur|\(blur >= 0.85 || clarity >= 0.5)"
+    case "nativeBlur": key = "nativeBlur|\(blur)|\(clarity)"
     default: key = "acrylic"
     }
     guard key != appliedEffectKey else { return }
@@ -317,6 +318,13 @@ final class ExpoAdaptiveGlassView: ExpoView, UIGestureRecognizerDelegate {
     if target == "system" && firstApply {
       effectView.effect = UIVisualEffect()
     }
+    // system materials can't blur less, so the blur is parked part way in, lighter with tier and clarity
+    if target == "nativeBlur" {
+      // the floor keeps clear glass reading as glass
+      partialBlur.apply(effect, amount: min(1, max(0.35, (1.15 - 0.7 * blur) * (1 - 0.45 * clarity))), to: effectView)
+      return
+    }
+    partialBlur.stop()
     let change = {
       // nil doesn't clear a glass effect, an empty UIVisualEffect does
       self.effectView.effect = effect ?? (wasSystem ? UIVisualEffect() : nil)
