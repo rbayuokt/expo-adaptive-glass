@@ -2,8 +2,8 @@ import React from 'react';
 import { View, useColorScheme } from 'react-native';
 
 import { parseTint } from './GlassSurface';
-import { clearer, nativeScheme, useGlassClarity } from './context';
 import { NativeGroupView } from './NativeGlassView';
+import { clearer, nativeScheme, useGlassClarity } from './context';
 import type { GlassGroupProps } from './types';
 
 /** Surfaces inside, at any depth, merge when they come within `spacing` of each other. */

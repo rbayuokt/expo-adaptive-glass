@@ -72,49 +72,43 @@ export function GlassMenu({
     });
   }, [items]);
 
-  const close = useCallback(() => setLevel(0), []);
+  const reset = useCallback(() => {
+    setAnchor(null);
+    setStack([]);
+    setHeights([]);
+    setShown(0);
+    setLevel(0);
+  }, []);
 
-  // closed before the glass ever left the button: no morph runs, so no end event either
-  const leftButton = useRef(false);
-  useEffect(() => {
-    if (level === 0 && !leftButton.current) {
-      if (anchor) {
-        setAnchor(null);
-        setStack([]);
-        setHeights([]);
-      }
-      return;
-    }
-    if (level === 0 || heights[level - 1] !== undefined) {
-      if (level > 0) leftButton.current = true;
-      setShown(level);
-    }
-  }, [level, heights, anchor]);
+  // the glass follows the level once its panel is measured
+  const ready = level === 0 || heights[level - 1] !== undefined;
+  if (anchor && ready && shown !== level) setShown(level);
+
+  // closed before the glass left the button: no morph runs, so no end event will reset it
+  const close = useCallback(() => (shown === 0 ? reset() : setLevel(0)), [shown, reset]);
 
   useEffect(() => {
     if (!anchor) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      setLevel((l) => Math.max(0, l - 1));
+      if (level <= 1) close();
+      else setLevel(level - 1);
       return true;
     });
     return () => sub.remove();
-  }, [anchor]);
+  }, [anchor, level, close]);
 
   const onMorphEnd = useCallback(
     (e: { nativeEvent: { index: number } }) => {
       const index = e.nativeEvent.index;
       if (index === 0 && level === 0) {
-        leftButton.current = false;
-        setAnchor(null);
-        setStack([]);
-        setHeights([]);
+        reset();
       } else if (index > 0 && index === level) {
         // drop submenus we came back from
         setStack((s) => (s.length > index ? s.slice(0, index) : s));
         setHeights((h) => (h.length > index ? h.slice(0, index) : h));
       }
     },
-    [level]
+    [level, reset]
   );
 
   const select = useCallback(

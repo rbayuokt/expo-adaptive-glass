@@ -1,8 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { StyleSheet, processColor, useColorScheme } from 'react-native';
-import { nativeScheme } from './context';
 
 import { NativeSliderView } from './NativeGlassView';
+import { nativeScheme } from './context';
 import { useGlassCapabilities } from './hooks/useGlassCapabilities';
 import type { GlassSliderProps } from './types';
 
@@ -25,7 +25,9 @@ export function GlassSlider({
   const span = maximumValue - minimumValue || 1;
   // native drags in 0..1, onValueChange only fires when the stepped value changes
   const last = useRef(value);
-  last.current = value;
+  useEffect(() => {
+    last.current = value;
+  }, [value]);
   const toValue = (f: number) => {
     const v = minimumValue + f * span;
     const snapped = step > 0 ? Math.round((v - minimumValue) / step) * step + minimumValue : v;

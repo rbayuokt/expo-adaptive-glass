@@ -1,8 +1,8 @@
 import React from 'react';
 import { StyleSheet, Switch, processColor, useColorScheme } from 'react-native';
-import { nativeScheme } from './context';
 
 import { NativeSwitchView } from './NativeGlassView';
+import { nativeScheme } from './context';
 import { useGlassCapabilities } from './hooks/useGlassCapabilities';
 import type { GlassSwitchProps } from './types';
 
