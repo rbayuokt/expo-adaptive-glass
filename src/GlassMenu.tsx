@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import {
   BackHandler,
+  Platform,
   Modal,
   Pressable,
   ScrollView,
@@ -15,6 +16,7 @@ import {
 } from 'react-native';
 
 import { GlassSurface } from './GlassSurface';
+import { GlassClarityContext, useGlassClarity } from './context';
 import { useOverlay } from './overlay';
 import type { GlassMenuItem, GlassMenuProps } from './types';
 
@@ -35,6 +37,11 @@ const PANEL_RADIUS = 24;
 const ROW_HEIGHT = 44;
 const PANEL_PADDING = 6;
 const ROW_INSET = 6;
+// menus stay readable instead of clear, and the button matches so the swap on close doesn't jump.
+// iOS 26 glass is readable as it is, and clarity under 0.5 would swap it for the thick material
+const SYSTEM_GLASS = Platform.OS === 'ios' && parseInt(String(Platform.Version), 10) >= 26;
+const PANEL_INTENSITY = SYSTEM_GLASS ? 0.6 : 0.95;
+const PANEL_CLARITY = SYSTEM_GLASS ? 1 : 0.45;
 
 /**
  * A round glass button that grows into a glass menu panel, like iOS 26. Items with `items`
@@ -57,6 +64,8 @@ export function GlassMenu({
   const key = useId();
   const window = useWindowDimensions();
   const scheme = useColorScheme();
+  // rows have to stay readable, clear glass lets the page through them
+  const clarity = Math.min(useGlassClarity(), PANEL_CLARITY);
   const dark = tint === 'dark' || (tint !== 'light' && scheme === 'dark');
   // rows grow with the text size, capped so a huge accessibility setting still fits
   const rowHeight = Math.round(ROW_HEIGHT * Math.min(window.fontScale, 1.6));
@@ -198,84 +207,89 @@ export function GlassMenu({
   };
 
   const layer = anchor ? (
-    <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-      <GlassSurface
-        priority="high"
-        tint={tint}
-        cornerRadius={PANEL_RADIUS}
-        style={StyleSheet.absoluteFill}
-        {...({
-          glassOverlay: true,
-          morphRect:
-            shown === 0
-              ? { ...anchor, radius: size / 2 }
-              : { ...panelRect(shown - 1), radius: PANEL_RADIUS },
-          morphIndex: shown,
-          onMorphEnd,
-          // the native view tracks the finger itself and draws the highlight
-          menuRows,
-          onMenuSelect,
-          onMenuDismiss: close,
-        } as object)}>
-        <View pointerEvents="none" style={[styles.trigger, rectStyle(anchor)]}>
-          {trigger}
-        </View>
-        {stack.map((l, i) => {
-          const r = panelRect(i);
-          return (
-            <View
-              key={i}
-              pointerEvents={scrolls(i) ? 'box-none' : 'none'}
-              style={[
-                styles.panel,
-                { left: r.x, top: r.y, width, height: panelHeight(i) || undefined },
-              ]}>
-              <ScrollView scrollEnabled={scrolls(i)} showsVerticalScrollIndicator={scrolls(i)}>
-                <View style={styles.panelContent} onLayout={(e) => measured(i, e)}>
-                  {i > 0 && (
-                    <Row
-                      label={l.title ?? ''}
-                      labelStyle={labelStyle}
-                      height={rowHeight}
-                      pressable={scrolls(i)}
-                      leading={
-                        <Text style={[styles.chevron, { color: dark ? '#fff' : '#000' }]}>‹</Text>
-                      }
-                      dark={dark}
-                      onActivate={() => setLevel(i)}
-                      bold
-                    />
-                  )}
-                  {l.items.map((item, j) => (
-                    <Row
-                      key={j}
-                      label={item.label}
-                      labelStyle={[labelStyle, item.labelStyle]}
-                      leading={item.icon}
-                      trailing={
-                        item.items ? (
-                          <Text style={[styles.chevron, { color: dark ? '#fff' : '#000' }]}>›</Text>
-                        ) : null
-                      }
-                      destructive={item.destructive}
-                      disabled={item.disabled}
-                      selected={item.selected}
-                      separator={item.separator}
-                      height={rowHeight}
-                      pressable={scrolls(i)}
-                      dark={dark}
-                      onActivate={() => select(item)}
-                    />
-                  ))}
-                </View>
-              </ScrollView>
-            </View>
-          );
-        })}
-      </GlassSurface>
-      {/* a scrolling menu isn't tracked natively, so taps around the panel close it here */}
-      {shown > 0 && scrolls(shown - 1) && <Dismiss rect={panelRect(shown - 1)} onPress={close} />}
-    </View>
+    <GlassClarityContext.Provider value={clarity}>
+      <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+        <GlassSurface
+          priority="high"
+          tint={tint}
+          intensity={PANEL_INTENSITY}
+          cornerRadius={PANEL_RADIUS}
+          style={StyleSheet.absoluteFill}
+          {...({
+            glassOverlay: true,
+            morphRect:
+              shown === 0
+                ? { ...anchor, radius: size / 2 }
+                : { ...panelRect(shown - 1), radius: PANEL_RADIUS },
+            morphIndex: shown,
+            onMorphEnd,
+            // the native view tracks the finger itself and draws the highlight
+            menuRows,
+            onMenuSelect,
+            onMenuDismiss: close,
+          } as object)}>
+          <View pointerEvents="none" style={[styles.trigger, rectStyle(anchor)]}>
+            {trigger}
+          </View>
+          {stack.map((l, i) => {
+            const r = panelRect(i);
+            return (
+              <View
+                key={i}
+                pointerEvents={scrolls(i) ? 'box-none' : 'none'}
+                style={[
+                  styles.panel,
+                  { left: r.x, top: r.y, width, height: panelHeight(i) || undefined },
+                ]}>
+                <ScrollView scrollEnabled={scrolls(i)} showsVerticalScrollIndicator={scrolls(i)}>
+                  <View style={styles.panelContent} onLayout={(e) => measured(i, e)}>
+                    {i > 0 && (
+                      <Row
+                        label={l.title ?? ''}
+                        labelStyle={labelStyle}
+                        height={rowHeight}
+                        pressable={scrolls(i)}
+                        leading={
+                          <Text style={[styles.chevron, { color: dark ? '#fff' : '#000' }]}>‹</Text>
+                        }
+                        dark={dark}
+                        onActivate={() => setLevel(i)}
+                        bold
+                      />
+                    )}
+                    {l.items.map((item, j) => (
+                      <Row
+                        key={j}
+                        label={item.label}
+                        labelStyle={[labelStyle, item.labelStyle]}
+                        leading={item.icon}
+                        trailing={
+                          item.items ? (
+                            <Text style={[styles.chevron, { color: dark ? '#fff' : '#000' }]}>
+                              ›
+                            </Text>
+                          ) : null
+                        }
+                        destructive={item.destructive}
+                        disabled={item.disabled}
+                        selected={item.selected}
+                        separator={item.separator}
+                        height={rowHeight}
+                        pressable={scrolls(i)}
+                        dark={dark}
+                        onActivate={() => select(item)}
+                      />
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+            );
+          })}
+        </GlassSurface>
+        {/* a scrolling menu isn't tracked natively, so taps around the panel close it here */}
+        {shown > 0 && scrolls(shown - 1) && <Dismiss rect={panelRect(shown - 1)} onPress={close} />}
+      </View>
+    </GlassClarityContext.Provider>
   ) : null;
 
   useLayoutEffect(() => {
@@ -284,7 +298,7 @@ export function GlassMenu({
   useLayoutEffect(() => () => overlay?.set(key, null), [overlay, key]);
 
   return (
-    <>
+    <GlassClarityContext.Provider value={clarity}>
       <View
         ref={buttonRef}
         accessible
@@ -306,6 +320,7 @@ export function GlassMenu({
           interactive
           priority="high"
           tint={tint}
+          intensity={PANEL_INTENSITY}
           cornerRadius={size / 2}
           style={[styles.button, { width: size, height: size }]}
           {...({
@@ -324,7 +339,7 @@ export function GlassMenu({
           {layer}
         </Modal>
       )}
-    </>
+    </GlassClarityContext.Provider>
   );
 }
 
