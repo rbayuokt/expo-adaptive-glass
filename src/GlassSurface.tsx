@@ -11,6 +11,10 @@ const DEFAULT_RADIUS = 24;
 
 export function GlassSurface({
   children,
+  shadow = false,
+  edgeColor,
+  edgeWidth = 0,
+  edgeRefraction = true,
   quality = 'auto',
   priority = 'normal',
   intensity = 0.6,
@@ -73,7 +77,17 @@ export function GlassSurface({
     );
   }
 
+  const edge = edgeColor ? processColor(edgeColor) : null;
   const nativeProps: NativeGlassViewProps = {
+    shadow: shadow === true ? 1 : shadow === false ? 0 : Math.max(0, Math.min(1, shadow)),
+    edgeColor: typeof edge === 'number' ? edge : null,
+    edgeWidth,
+    edgeRefraction:
+      edgeRefraction === true
+        ? 1
+        : edgeRefraction === false
+          ? 0
+          : Math.max(0, Math.min(1, edgeRefraction)),
     surfaceId: id,
     renderer: allocation.renderer,
     quality: allocation.quality,

@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import {
   GlassLens,
   GlassMenu,
@@ -7,6 +6,7 @@ import {
   GlassSwitch,
   GlassTabBar,
 } from '@rbayuokt/expo-adaptive-glass';
+import { Image } from 'expo-image';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -200,6 +200,31 @@ export function BasicsScreen() {
         </View>
       </Section>
 
+      <Section title="Shadow and edge">
+        <View style={styles.shadowRow}>
+          <GlassSurface cornerRadius={32} style={styles.orb} />
+          <GlassSurface shadow cornerRadius={32} style={styles.orb} />
+          <GlassSurface
+            shadow={0.6}
+            edgeColor="rgba(91,91,240,0.6)"
+            edgeWidth={2}
+            cornerRadius={32}
+            style={styles.orb}
+          />
+        </View>
+        <Text style={[styles.p, { color: theme.muted }]}>
+          Plain, then shadow, then shadow with a coloured edge. Both are off by default.
+        </Text>
+        <View style={styles.shadowRow}>
+          <GlassSurface edgeRefraction={false} cornerRadius={20} style={styles.edgeCard} />
+          <GlassSurface cornerRadius={20} style={styles.edgeCard} />
+        </View>
+        <Text style={[styles.p, { color: theme.muted }]}>
+          Left with edgeRefraction off, right the default, which bends what's behind along the rim
+          on Android 13+.
+        </Text>
+      </Section>
+
       <Section title="Lens">
         <GlassLens style={styles.lensStage}>
           <Image
@@ -277,6 +302,9 @@ const styles = StyleSheet.create({
   menuRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   menuPick: { flex: 1 },
   menuLabel: { fontSize: 15, letterSpacing: 0.3 },
+  shadowRow: { flexDirection: 'row', gap: 20, paddingVertical: 8 },
+  orb: { width: 64, height: 64 },
+  edgeCard: { flex: 1, height: 88 },
   lensStage: { gap: 10 },
   lensImage: { height: 160, borderRadius: 16 },
   switchRow: {

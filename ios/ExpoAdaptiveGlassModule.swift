@@ -46,6 +46,10 @@ public class ExpoAdaptiveGlassModule: Module {
       Prop("tintColor") { (view, value: UIColor?) in view.glassTint = value }
       Prop("tintScheme") { (view, value: String) in view.tintScheme = value }
       Prop("cornerRadius") { (view, value: Double) in view.cornerRadius = CGFloat(value) }
+      Prop("shadow") { (view: ExpoAdaptiveGlassView, value: Double) in view.shadow = CGFloat(value) }
+      Prop("edgeColor") { (view: ExpoAdaptiveGlassView, value: UIColor?) in view.edgeColor = value }
+      Prop("edgeWidth") { (view: ExpoAdaptiveGlassView, value: Double) in view.edgeWidth = CGFloat(value) }
+      Prop("edgeRefraction") { (view: ExpoAdaptiveGlassView, value: Double) in view.edgeRefraction = CGFloat(value) }
       Prop("interactive") { (view, value: Bool) in view.interactive = value }
       Prop("draggable") { (view, value: Bool) in view.draggable = value }
       Prop("morphRect") { (view, value: [String: Double]?) in view.morphRect = value }

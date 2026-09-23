@@ -423,6 +423,10 @@ the value with `useGlassClarity()`.
 | `tint` | `'system'` | `'system'`, `'light'`, `'dark'` or any color |
 | `cornerRadius` | `24` | Anything over half the short side becomes a capsule |
 | `refraction` | `true` | Allow edge bending where the tier has it |
+| `shadow` | `false` | Shadow outside the shape. `true`, or `0` to `1` for the strength |
+| `edgeColor` | | Paints the rim this colour, alpha included, instead of the light the glass picks |
+| `edgeWidth` | | Rim thickness in points, a hairline by default |
+| `edgeRefraction` | `true` | Bends the background harder along the rim, Android 13+ only. `false`, or `0` to `1` |
 | `interactive` | `false` | Native press: swell, lean toward the finger, light under it |
 | `draggable` | `false` | Follows the finger natively and springs back on release. A scroll view around it waits for the drag |
 | `onInteractionStart` / `onInteractionEnd` | | Once per press |
@@ -438,6 +442,25 @@ Everything settles on critically damped springs: smooth, no bounce. A press ends
 finger lifts or when a list around it starts scrolling. `UIGlassEffect.isInteractive` isn't
 used because it never reacted with React Native content inside the glass on iOS 26.1.
 
+Glass over a plain white screen can read as a flat transparent shape, since there's nothing
+behind it to bend. `shadow` fixes that without touching the glass: it's drawn only outside the
+shape, so it lifts the surface off the background instead of darkening it.
+
+```tsx
+<GlassSurface shadow style={styles.fab} />
+<GlassSurface shadow={0.6} edgeColor="rgba(91,91,240,0.6)" edgeWidth={2} style={styles.card} />
+```
+
+`edgeRefraction` pushes the AGSL bending at the rim up to three times further on Android 13+,
+the thing that makes iOS 26 glass look thick. It's on by default and needs no guarding: tiers
+without the shader have nothing to multiply, so a weak phone never pays for it. Pass `false` to
+go back to the plain bend. iOS 26 already bends on its own, and iOS below 26 ignores it, because
+`UIVisualEffectView` never hands over the pixels behind it.
+
+`edgeColor` and `edgeWidth` take over the rim, which otherwise comes from the light and the
+tint. A colour there also shows on iOS 26, where the system glass draws no rim of its own. Both
+are off by default, so nothing changes until you ask for them.
+
 ### `<GlassBackdrop>`
 
 ```tsx
@@ -449,6 +472,26 @@ used because it never reacted with React Native content inside the glass on iOS 
 Marks what glass on Android should blur, see [step 4 of the quick start](#4-give-android-something-to-blur).
 It takes the same props as a `View`. Glass goes next to it, in front, never inside it. On iOS
 it's a plain `View`.
+
+A surface ignores any backdrop it sits inside, so glass in there falls back to the next one
+behind it, or to acrylic if there is none. That matters when a bar has to blur the screen's own
+content: wrap the content in its own backdrop, and keep a second one behind it for the glass
+inside the content to use.
+
+```tsx
+<GlassBackdrop style={StyleSheet.absoluteFill}>{/* wallpaper, gradients */}</GlassBackdrop>
+
+<GlassBackdrop style={StyleSheet.absoluteFill}>
+  <ScrollView>{/* photos, cards, glass surfaces */}</ScrollView>
+</GlassBackdrop>
+
+<GlassTabBar ... />   {/* outside both: blurs the screen content above */}
+```
+
+With React Navigation or Expo Router this is already the shape you get, since
+`GlassScreenBackdrop` wraps each screen and the tab bar lives outside it. Everything inside a
+backdrop is re-recorded when it changes, so a heavy scrolling screen costs more there than a
+static background does.
 
 ### `<GlassTabBar>`
 
@@ -814,13 +857,14 @@ The bottom bar is the library's own `GlassTabBar`.
 | --- | --- |
 | Home | Demo sections in a glass bar at the top: Basics, Merge, Nav, Many, Scroll, Stress, Quality, A11y |
 | Playground | One live surface with controls for every prop, and the JSX to copy |
-| Benchmark | Timed runs over 1 to 30 surfaces, or **Run all** for every renderer and count |
+| Benchmark | Timed runs over 1 to 30 surfaces at `auto`, `ultra`, `medium` or `low`, or **Run all** for every combination |
 | Inspect | Device facts and runtime state |
 | Settings | Global glass settings (Tinted / Clear, a clarity slider, quality, the provider toggles) and About |
 
 Inside Home, Basics has the tab bar lens with a lens / pill / colour switcher, switches, three
 `GlassMenu`s (nested submenus, checkmarks, a disabled row, separators and styled labels, plus a
-24 row menu that scrolls) and a `GlassLens` over a photo. Merge has joining, splitting, a draggable
+24 row menu that scrolls), shadow and edge orbs, a pair of cards showing `edgeRefraction` on and
+off, and a `GlassLens` over a photo. Merge has joining, splitting, a draggable
 circle and a detaching + button, and Nav runs a real React Navigation bottom-tabs navigator with
 `GlassNavigationTabBar`.
 
@@ -851,6 +895,7 @@ view, so its own background paints over the glass. Put colors on the children or
 ## Limitations
 
 - Android live blur needs a `GlassBackdrop`, and only what's inside it gets blurred.
+- A surface can't use a backdrop it sits inside, so nested glass needs a second one behind it.
 - Android has no Reduce Transparency setting.
 - iOS below 26 can't read the pixels behind a view, so surfaces there get rim, light and motion
   but no edge bending. The lenses (tab bar, switch, slider, `GlassLens`) are the exception,
@@ -863,7 +908,6 @@ view, so its own background paints over the glass. Put colors on the children or
 - iOS below 26 has no blur radius API. The blur is parked part of the way through a paused
   `UIViewPropertyAnimator`, which is public API, and re-parked when the app returns from the
   background.
-- No native drop shadow, it would show through the glass. Use React Native shadow styles.
 - Only the New Architecture has been run.
 - The scoring weights and budget are guesses until they're measured on real devices.
 

@@ -7,6 +7,11 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Outline
+import android.graphics.Path
+import android.graphics.RectF
+import android.graphics.RenderEffect
+import android.graphics.RenderNode
+import android.graphics.Shader
 import android.os.Build
 import android.os.SystemClock
 import android.view.MotionEvent
@@ -55,6 +60,10 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
   // it when it changes. Child `morphIndex` is shown, the others fade out.
   var morphRect: Map<String, Double>? = null
   var morphIndex = 0
+  var shadow = 0f
+  var edgeColor: Int? = null
+  var edgeWidth = 0f
+  var edgeRefraction = 0f
   // GlassMenu rows of the shown panel, [x, y, width, height] in dp. While set, the view takes every
   // touch, slides a highlight under the finger and reports the row it's released on.
   var menuRows: List<List<Double>> = emptyList()
@@ -225,8 +234,12 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
   }
 
   private fun applyProps(animated: Boolean) {
+    // the outline clip would cut our own shadow off
+    clipToOutline = shadow <= 0f
     val dark = isNight(tintScheme)
-    material.configure(AcrylicRenderer.Style(dark, tint, intensity, opaque, quality == "minimal", clarity, quality == "ultra"))
+    material.configure(AcrylicRenderer.Style(
+      dark, tint, intensity, opaque, quality == "minimal", clarity, quality == "ultra", edgeColor, edgeWidth,
+    ))
 
     val wantsLive = !opaque && (renderer == "nativeBlur" || renderer == "shaderGlass") &&
       Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -644,7 +657,71 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
     invalidate()
   }
 
+  private val shadowPath = Path()
+  private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+  private var shadowNode: Any? = null // RenderNode on API 31+
+
+  private fun shapeInto(path: Path): Float {
+    val r = morphNow.rect
+    val radius = if (morphActive) morphNow.radius else radiusPx(width, height)
+    path.reset()
+    if (morphActive) {
+      path.addRoundRect(r, radius, radius, Path.Direction.CW)
+    } else {
+      path.addRoundRect(0f, 0f, width.toFloat(), height.toFloat(), radius, radius, Path.Direction.CW)
+    }
+    return radius
+  }
+
+  // only outside the shape, a shadow behind translucent glass shows through it
+  private fun drawShadow(canvas: Canvas) {
+    val radius = shapeInto(shadowPath)
+    val rect = RectF()
+    shadowPath.computeBounds(rect, true)
+    val blur = 10f * density
+    val dy = 4f * density
+    val save = canvas.save()
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) canvas.clipOutPath(shadowPath)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && canvas.isHardwareAccelerated) {
+      val node = (shadowNode as? RenderNode) ?: RenderNode("GlassShadow").also { shadowNode = it }
+      val pad = (blur * 3).toInt()
+      node.setPosition(
+        rect.left.toInt() - pad, rect.top.toInt() - pad + dy.toInt(),
+        rect.right.toInt() + pad, rect.bottom.toInt() + pad + dy.toInt(),
+      )
+      val rc = node.beginRecording()
+      try {
+        shadowPaint.color = AcrylicRenderer.withAlpha(Color.BLACK, 0.22f * shadow)
+        rc.translate(pad - rect.left, pad - rect.top)
+        rc.drawRoundRect(rect, radius, radius, shadowPaint)
+      } finally {
+        node.endRecording()
+      }
+      node.setRenderEffect(RenderEffect.createBlurEffect(blur, blur, Shader.TileMode.DECAL))
+      canvas.drawRenderNode(node)
+    } else {
+      // no RenderEffect here, a few fading strokes read close enough
+      shadowPaint.style = Paint.Style.STROKE
+      for (i in 1..4) {
+        shadowPaint.strokeWidth = i * 2f * density
+        shadowPaint.color = AcrylicRenderer.withAlpha(Color.BLACK, 0.05f * shadow / i)
+        canvas.drawRoundRect(
+          rect.left, rect.top + dy, rect.right, rect.bottom + dy, radius, radius, shadowPaint,
+        )
+      }
+      shadowPaint.style = Paint.Style.FILL
+    }
+    canvas.restoreToCount(save)
+  }
+
   override fun draw(canvas: Canvas) {
+    val shadowOn = shadow > 0f && !grouped
+    if (shadowOn) drawShadow(canvas)
+    val clipSave = if (shadowOn) canvas.save() else -1
+    if (shadowOn) {
+      shapeInto(shadowPath)
+      canvas.clipPath(shadowPath)
+    }
     val r = morphNow.rect
     val left = if (morphActive) r.left else 0f
     val top = if (morphActive) r.top else 0f
@@ -663,6 +740,7 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
       drawHighlight(canvas)
     }
     super.draw(canvas)
+    if (clipSave >= 0) canvas.restoreToCount(clipSave)
   }
 
   private fun drawBlur(canvas: Canvas, w: Int, h: Int, radius: Float, left: Float, top: Float): Boolean {
@@ -683,10 +761,15 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
         val k = if (lightOn) specAlpha else 0f
         val lightX = -0.25f * w + (touchX + 0.25f * w) * k
         val lightY = -0.6f * h + (touchY + 0.6f * h) * k
+        val bezel = maxOf(minOf(radius, minOf(w, h) * 0.5f), 8f * density)
         shader.effect(
-          blurEffect, w.toFloat(), h.toFloat(), radius,
-          maxOf(minOf(radius, minOf(w, h) * 0.5f), 8f * density),
-          refractionNow * MAX_REFRACTION_DP * density,
+          blurEffect, w.toFloat(), h.toFloat(), radius, bezel,
+          // past the shape's own edge band the bend folds back and the outline goes faceted
+          minOf(
+            refractionNow * MAX_REFRACTION_DP * (1f + 2f * edgeRefraction) * density,
+            bezel,
+            minOf(w, h) * 0.22f,
+          ),
           if (shaderQuality >= 3) 1f else 0f,
           lightX, lightY, k,
           if (shaderQuality >= 2) 1f else 0.6f,

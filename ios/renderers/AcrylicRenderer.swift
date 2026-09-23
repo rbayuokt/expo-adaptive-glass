@@ -16,6 +16,9 @@ final class AcrylicRenderer {
     // 0 frosted to 1 clear
     var clarity: CGFloat = 0
     var ultra = false
+    // set by the app, in place of the rim the glass lights itself
+    var edge: UIColor?
+    var edgeWidth: CGFloat = 0
   }
 
   let root = CALayer()
@@ -57,6 +60,8 @@ final class AcrylicRenderer {
     [fill, sheen, border, specular].forEach(root.addSublayer)
   }
 
+  private var edgeWidth: CGFloat = 0
+
   func layout(bounds: CGRect, radius: CGFloat, scale: CGFloat) {
     CATransaction.begin()
     CATransaction.setDisableActions(true)
@@ -68,7 +73,7 @@ final class AcrylicRenderer {
     if bounds.size != laidOutSize || radius != laidOutRadius {
       laidOutSize = bounds.size
       laidOutRadius = radius
-      let width = max(1 / scale, 0.75)
+      let width = edgeWidth > 0 ? edgeWidth : max(1 / scale, 0.75)
       borderMask.frame = bounds
       borderMask.borderWidth = width
       borderMask.cornerRadius = radius
@@ -84,6 +89,10 @@ final class AcrylicRenderer {
   }
 
   func apply(_ next: Style, animated: Bool) {
+    if next.edgeWidth != style?.edgeWidth {
+      // the rim width is set during layout, force it to run again
+      laidOutSize = .zero
+    }
     guard next != style else { return }
     style = next
     CATransaction.begin()
@@ -120,7 +129,10 @@ final class AcrylicRenderer {
     for (i, layer) in bezel.enumerated() {
       layer.borderColor = light.withAlphaComponent(bezelOn ? Self.bezelAlphas[i] * (next.dark ? 0.7 : 1) : 0).cgColor
     }
-    if next.mode == .opaque {
+    if let edge = next.edge {
+      border.colors = [edge.cgColor, edge.cgColor, edge.cgColor]
+      border.locations = [0, 0.5, 1]
+    } else if next.mode == .opaque {
       border.colors = [light.withAlphaComponent(0.9).cgColor, light.withAlphaComponent(0.5).cgColor]
       border.locations = nil
     } else if next.ultra {
@@ -141,7 +153,7 @@ final class AcrylicRenderer {
       ]
       border.locations = [0, 0.45, 1]
     }
-    border.opacity = next.mode == .system ? 0 : (next.minimal ? 0.6 : 1)
+    border.opacity = next.edge != nil ? 1 : (next.mode == .system ? 0 : (next.minimal ? 0.6 : 1))
 
     specular.colors = [
       light.withAlphaComponent(next.dark ? 0.32 : 0.55).cgColor,

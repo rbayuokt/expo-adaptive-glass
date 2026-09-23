@@ -112,6 +112,15 @@ export interface GlassProviderProps {
 
 export interface GlassSurfaceProps extends Omit<ViewProps, 'style'> {
   children?: ReactNode;
+  /** Shadow outside the shape, so it can't darken the glass. `true` for the default, or 0 to 1 */
+  shadow?: boolean | number;
+  /** Paints the rim this colour instead of the light the glass picks, alpha included */
+  edgeColor?: ColorValue;
+  /** Rim thickness in points, a hairline by default */
+  edgeWidth?: number;
+  /** Bends the background harder along the rim, on by default. Android 13+ only, the other
+   * renderers either bend already or can't read what's behind them. `false` or 0 to 1 */
+  edgeRefraction?: boolean | number;
   quality?: GlassQuality;
   priority?: GlassPriority;
   /** 0..1 */

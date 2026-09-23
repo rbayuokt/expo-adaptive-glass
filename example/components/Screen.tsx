@@ -1,3 +1,4 @@
+import { GlassBackdrop } from '@rbayuokt/expo-adaptive-glass';
 import React, { type ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,21 +34,24 @@ export function Screen({
   return (
     <View style={styles.fill}>
       <Backdrop animated={animated} />
-      {scroll ? (
-        <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            { paddingTop: top, paddingBottom: insets.bottom + TAB_BAR_SPACE },
-          ]}>
-          {header}
-          {children}
-        </ScrollView>
-      ) : (
-        <View style={[styles.fill, { paddingTop: top }]}>
-          <View style={styles.pad}>{header}</View>
-          {children}
-        </View>
-      )}
+      {/* the tab bar blurs this one, glass in here skips it as an ancestor and uses the outer */}
+      <GlassBackdrop style={StyleSheet.absoluteFill}>
+        {scroll ? (
+          <ScrollView
+            contentContainerStyle={[
+              styles.content,
+              { paddingTop: top, paddingBottom: insets.bottom + TAB_BAR_SPACE },
+            ]}>
+            {header}
+            {children}
+          </ScrollView>
+        ) : (
+          <View style={[styles.fill, { paddingTop: top }]}>
+            <View style={styles.pad}>{header}</View>
+            {children}
+          </View>
+        )}
+      </GlassBackdrop>
     </View>
   );
 }

@@ -55,6 +55,10 @@ class ExpoAdaptiveGlassModule : Module() {
       Prop("tintColor") { view: ExpoAdaptiveGlassView, value: Int? -> view.tint = value }
       Prop("tintScheme") { view: ExpoAdaptiveGlassView, value: String -> view.tintScheme = value }
       Prop("cornerRadius") { view: ExpoAdaptiveGlassView, value: Double -> view.cornerRadiusDp = value.toFloat() }
+      Prop("shadow") { view: ExpoAdaptiveGlassView, value: Double -> view.shadow = value.toFloat() }
+      Prop("edgeColor") { view: ExpoAdaptiveGlassView, value: Int? -> view.edgeColor = value }
+      Prop("edgeWidth") { view: ExpoAdaptiveGlassView, value: Double -> view.edgeWidth = value.toFloat() }
+      Prop("edgeRefraction") { view: ExpoAdaptiveGlassView, value: Double -> view.edgeRefraction = value.toFloat() }
       Prop("interactive") { view: ExpoAdaptiveGlassView, value: Boolean -> view.interactive = value }
       Prop("draggable") { view: ExpoAdaptiveGlassView, value: Boolean -> view.draggable = value }
       Prop("morphRect") { view: ExpoAdaptiveGlassView, value: Map<String, Double>? -> view.morphRect = value }

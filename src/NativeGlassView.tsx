@@ -20,6 +20,10 @@ export interface NativeGlassViewProps extends ViewProps {
   tintColor: number | null;
   tintScheme: 'system' | 'light' | 'dark';
   cornerRadius: number;
+  shadow: number;
+  edgeColor: number | null;
+  edgeWidth: number;
+  edgeRefraction: number;
   interactive: boolean;
   draggable: boolean;
   onInteractionStart?: () => void;
