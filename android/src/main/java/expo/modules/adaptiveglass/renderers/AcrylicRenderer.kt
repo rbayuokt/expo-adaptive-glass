@@ -21,6 +21,9 @@ class AcrylicRenderer(private val density: Float) {
     // 0 frosted to 1 clear
     val clarity: Float = 0f,
     val ultra: Boolean = false,
+    // set by the app, in place of the rim the glass lights itself
+    val edge: Int? = null,
+    val edgeWidth: Float = 0f,
   )
 
   private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -107,9 +110,12 @@ class AcrylicRenderer(private val density: Float) {
       0f, 0f, 0f, h * 0.6f,
       withAlpha(light, sheenAlpha), withAlpha(light, 0f), Shader.TileMode.CLAMP,
     )
-    borderPaint.strokeWidth = maxOf(1f, 0.75f * density)
+    borderPaint.strokeWidth = if (s.edgeWidth > 0f) s.edgeWidth * density else maxOf(1f, 0.75f * density)
     // lit top-left only, a full rim reads as a white border on clear glass
-    borderPaint.shader = if (s.opaque) {
+    borderPaint.shader = if (s.edge != null) {
+      borderPaint.color = s.edge
+      null
+    } else if (s.opaque) {
       LinearGradient(0f, 0f, w.toFloat(), h.toFloat(), withAlpha(light, 0.9f), withAlpha(light, 0.5f), Shader.TileMode.CLAMP)
     } else if (s.ultra) {
       // ultra gets a soft rim all the way round like iOS 26 clear glass, brightest top-left

@@ -14,9 +14,15 @@ import { Screen, Section } from '../components/Screen';
 import { useTheme } from '../theme';
 
 const COUNTS = [1, 5, 10, 20, 30] as const;
-// ultra: best renderer, medium: plain native blur, low: acrylic
-const MODES = { auto: 'auto', best: 'ultra', blur: 'medium', acrylic: 'low' } as const;
-type Mode = keyof typeof MODES;
+// the tiers worth timing, auto shows what the budget saves over pinning
+const MODES = ['auto', 'ultra', 'medium', 'low'] as const;
+type Mode = (typeof MODES)[number];
+const WHAT: Record<Mode, string> = {
+  auto: 'budget picks per surface',
+  ultra: 'best renderer, edge bending',
+  medium: 'plain blur, no bending',
+  low: 'acrylic, no live blur',
+};
 const DURATION_MS = 10_000;
 // lets the tier settle after the surfaces change before sampling
 const WARMUP_MS = 2_000;
@@ -64,7 +70,7 @@ export function BenchmarkScreen() {
 
   const runAll = () => {
     const all: [Mode, (typeof COUNTS)[number]][] = [];
-    for (const md of Object.keys(MODES) as Mode[]) for (const c of COUNTS) all.push([md, c]);
+    for (const md of MODES) for (const c of COUNTS) all.push([md, c]);
     setResults([]);
     setQueue(all);
   };
@@ -104,7 +110,7 @@ export function BenchmarkScreen() {
     }, WARMUP_MS + DURATION_MS);
   };
 
-  const quality: GlassQuality = MODES[mode];
+  const quality: GlassQuality = mode;
   return (
     <Screen
       title="Benchmark"
@@ -113,8 +119,9 @@ export function BenchmarkScreen() {
       <Section title="Surfaces">
         <Pills options={COUNTS} value={count} onChange={setCount} />
       </Section>
-      <Section title="Renderer">
-        <Pills options={Object.keys(MODES) as Mode[]} value={mode} onChange={setMode} />
+      <Section title="Quality">
+        <Pills options={MODES} value={mode} onChange={setMode} />
+        <Text style={[styles.result, { color: theme.muted }]}>{WHAT[mode]}</Text>
       </Section>
       <View style={styles.buttons}>
         <Pressable style={styles.button} disabled={running} onPress={() => start(mode, count)}>

@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import {
   GlassLens,
   GlassMenu,
@@ -7,6 +6,7 @@ import {
   GlassSwitch,
   GlassTabBar,
 } from '@rbayuokt/expo-adaptive-glass';
+import { Image } from 'expo-image';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -113,14 +113,31 @@ export function BasicsScreen() {
               {
                 label: 'Read all',
                 icon: <Ionicons name="chatbubble-outline" size={20} color={theme.text} />,
+                selected: menuPick === 'Read all',
                 onPress: () => setMenuPick('Read all'),
+              },
+              {
+                label: 'Archive',
+                icon: <Ionicons name="archive-outline" size={20} color={theme.text} />,
+                disabled: true,
+                separator: true,
+                onPress: () => setMenuPick('Archive'),
               },
               {
                 label: 'Sort by',
                 icon: <Ionicons name="swap-vertical" size={20} color={theme.text} />,
                 items: [
-                  { label: 'Newest', onPress: () => setMenuPick('Newest') },
-                  { label: 'Unread first', onPress: () => setMenuPick('Unread first') },
+                  {
+                    label: 'Newest',
+                    selected: menuPick === 'Newest',
+                    onPress: () => setMenuPick('Newest'),
+                  },
+                  {
+                    label: 'Unread first',
+                    selected: menuPick === 'Unread first',
+                    separator: true,
+                    onPress: () => setMenuPick('Unread first'),
+                  },
                   {
                     label: 'More',
                     items: [
@@ -144,6 +161,7 @@ export function BasicsScreen() {
           <GlassMenu
             accessibilityLabel="Add"
             trigger={<Ionicons name="add" size={22} color={theme.text} />}
+            labelStyle={styles.menuLabel}
             items={[
               {
                 label: 'New chat',
@@ -153,11 +171,58 @@ export function BasicsScreen() {
               {
                 label: 'New group',
                 icon: <Ionicons name="people-outline" size={20} color={theme.text} />,
+                separator: true,
                 onPress: () => setMenuPick('New group'),
+              },
+              {
+                label: 'New broadcast',
+                icon: <Ionicons name="megaphone-outline" size={20} color={theme.accent} />,
+                labelStyle: { color: theme.accent, fontWeight: '700' },
+                onPress: () => setMenuPick('New broadcast'),
+              },
+              {
+                label: 'New community',
+                icon: <Ionicons name="business-outline" size={20} color={theme.text} />,
+                disabled: true,
+                onPress: () => setMenuPick('New community'),
               },
             ]}
           />
+          <GlassMenu
+            accessibilityLabel="Long list"
+            trigger={<Ionicons name="list" size={20} color={theme.text} />}
+            labelStyle={{ fontSize: 15 }}
+            items={Array.from({ length: 24 }, (_, i) => ({
+              label: `Row ${i + 1}`,
+              onPress: () => setMenuPick(`Row ${i + 1}`),
+            }))}
+          />
         </View>
+      </Section>
+
+      <Section title="Shadow and edge">
+        <View style={styles.shadowRow}>
+          <GlassSurface cornerRadius={32} style={styles.orb} />
+          <GlassSurface shadow cornerRadius={32} style={styles.orb} />
+          <GlassSurface
+            shadow={0.6}
+            edgeColor="rgba(91,91,240,0.6)"
+            edgeWidth={2}
+            cornerRadius={32}
+            style={styles.orb}
+          />
+        </View>
+        <Text style={[styles.p, { color: theme.muted }]}>
+          Plain, then shadow, then shadow with a coloured edge. Both are off by default.
+        </Text>
+        <View style={styles.shadowRow}>
+          <GlassSurface edgeRefraction={false} cornerRadius={20} style={styles.edgeCard} />
+          <GlassSurface cornerRadius={20} style={styles.edgeCard} />
+        </View>
+        <Text style={[styles.p, { color: theme.muted }]}>
+          Left with edgeRefraction off, right the default, which bends what's behind along the rim
+          on Android 13+.
+        </Text>
       </Section>
 
       <Section title="Lens">
@@ -236,6 +301,10 @@ const styles = StyleSheet.create({
   switches: { paddingHorizontal: 18, paddingVertical: 8 },
   menuRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   menuPick: { flex: 1 },
+  menuLabel: { fontSize: 15, letterSpacing: 0.3 },
+  shadowRow: { flexDirection: 'row', gap: 20, paddingVertical: 8 },
+  orb: { width: 64, height: 64 },
+  edgeCard: { flex: 1, height: 88 },
   lensStage: { gap: 10 },
   lensImage: { height: 160, borderRadius: 16 },
   switchRow: {

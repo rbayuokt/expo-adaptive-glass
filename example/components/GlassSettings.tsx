@@ -15,7 +15,7 @@ export interface GlassSettingsValue {
 
 export const DEFAULT_SETTINGS: GlassSettingsValue = {
   theme: 'system',
-  quality: 'auto',
+  quality: 'ultra',
   clarity: 1,
   adaptivePerformance: true,
   respectLowPowerMode: true,

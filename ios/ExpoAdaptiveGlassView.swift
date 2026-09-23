@@ -29,6 +29,10 @@ final class ExpoAdaptiveGlassView: ExpoView, UIGestureRecognizerDelegate {
   /// when it changes. Child `morphIndex` is shown, the others fade out.
   var morphRect: [String: Double]?
   var morphIndex = 0
+  var shadow: CGFloat = 0
+  var edgeColor: UIColor?
+  var edgeWidth: CGFloat = 0
+  var edgeRefraction: CGFloat = 0
   let onMenuSelect = EventDispatcher()
   let onMenuDismiss = EventDispatcher()
   /// GlassMenu rows of the shown panel, [x, y, width, height] each. While set, the view takes every
@@ -59,6 +63,9 @@ final class ExpoAdaptiveGlassView: ExpoView, UIGestureRecognizerDelegate {
   private let partialBlur = PartialBlur()
   // RN children, shifted so they stay put while a morph moves the glass
   private let contentHost = UIView()
+  // masked to everything outside the shape, a plain shadow would darken the glass itself
+  private let shadowLayer = CALayer()
+  private let shadowCutout = CAShapeLayer()
   private var morphActive = false
   private var morphFrom = MorphState()
   private var morphTo = MorphState()
@@ -114,6 +121,12 @@ final class ExpoAdaptiveGlassView: ExpoView, UIGestureRecognizerDelegate {
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
     clipsToBounds = false
+    shadowCutout.fillRule = .evenOdd
+    shadowLayer.mask = shadowCutout
+    shadowLayer.shadowColor = UIColor.black.cgColor
+    shadowLayer.shadowOffset = CGSize(width: 0, height: 4)
+    shadowLayer.shadowRadius = 10
+    layer.addSublayer(shadowLayer)
     host.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     effectView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     effectView.clipsToBounds = true
@@ -159,6 +172,21 @@ final class ExpoAdaptiveGlassView: ExpoView, UIGestureRecognizerDelegate {
   /// 999 means capsule. Past half the short side, layer and glass corners misbehave.
   private var effectiveRadius: CGFloat { min(cornerRadius, min(bounds.width, bounds.height) / 2) }
 
+  private func layoutShadow() {
+    shadowLayer.shadowOpacity = Float(0.22 * shadow)
+    guard shadow > 0 else { return }
+    let rect = morphActive ? currentMorph().rect : bounds
+    let radius = morphActive ? currentMorph().radius : effectiveRadius
+    let spread = shadowLayer.shadowRadius * 2 + abs(shadowLayer.shadowOffset.height) + 2
+    let shape = UIBezierPath(roundedRect: rect, cornerRadius: radius)
+    shadowLayer.frame = bounds
+    shadowLayer.shadowPath = shape.cgPath
+    let outside = UIBezierPath(rect: rect.insetBy(dx: -spread, dy: -spread))
+    outside.append(shape)
+    shadowCutout.frame = bounds
+    shadowCutout.path = outside.cgPath
+  }
+
   // MARK: - lifecycle
 
   override func didMoveToWindow() {
@@ -182,6 +210,7 @@ final class ExpoAdaptiveGlassView: ExpoView, UIGestureRecognizerDelegate {
 
   override func layoutSubviews() {
     super.layoutSubviews()
+    layoutShadow()
     // only on real geometry changes: even identical writes make iOS 26 rebuild the glass,
     // which blanks the screen behind it for a frame
     let size = bounds.size
@@ -238,6 +267,7 @@ final class ExpoAdaptiveGlassView: ExpoView, UIGestureRecognizerDelegate {
   // MARK: - props
 
   func propsDidUpdate() {
+    layoutShadow()
     updateMorph()
     updateMenu()
     // RN resends every prop on each re-render. Rewriting identical values rebuilds iOS 26 glass
@@ -245,6 +275,7 @@ final class ExpoAdaptiveGlassView: ExpoView, UIGestureRecognizerDelegate {
     let signature =
       "\(renderer)|\(quality)|\(blur)|\(refraction)|\(dynamicHighlights)|\(opaqueMaterial)|\(reduceMotion)|"
       + "\(intensity)|\(clarity)|\(String(describing: glassTint))|\(tintScheme)|\(cornerRadius)|\(interactive)|\(draggable)"
+      + "|\(shadow)|\(String(describing: edgeColor))|\(edgeWidth)|\(edgeRefraction)"
     if hasProps && signature == appliedProps { return }
     appliedProps = signature
     hasProps = true
@@ -284,7 +315,10 @@ final class ExpoAdaptiveGlassView: ExpoView, UIGestureRecognizerDelegate {
     let mode: AcrylicRenderer.Mode =
       opaqueMaterial ? .opaque : target == "system" ? .system : target == "nativeBlur" ? .liveBlur : .acrylic
     material.apply(
-      .init(mode: mode, dark: dark, tint: glassTint, intensity: intensity, minimal: quality == "minimal", clarity: clarity, ultra: quality == "ultra"),
+      .init(
+        mode: mode, dark: dark, tint: glassTint, intensity: intensity,
+        minimal: quality == "minimal", clarity: clarity, ultra: quality == "ultra",
+        edge: edgeColor, edgeWidth: edgeWidth),
       animated: animated)
 
     // only inputs that change pixels: reassigning an identical effect can flash for a frame
@@ -616,8 +650,14 @@ final class ExpoAdaptiveGlassView: ExpoView, UIGestureRecognizerDelegate {
 
   override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
     guard morphActive else { return super.hitTest(point, with: event) }
-    // the open menu takes every touch, a closing one lets them through to the app
-    return menuActive && bounds.contains(point) ? self : nil
+    if menuActive && bounds.contains(point) { return self }
+    // a menu with no rows scrolls its own list, so its rows keep their touches
+    if morphIndex > 0 {
+      let hit = super.hitTest(point, with: event)
+      return hit === self ? nil : hit
+    }
+    // a closing menu lets touches through to the app
+    return nil
   }
 
   override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {

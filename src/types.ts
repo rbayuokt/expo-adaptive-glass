@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { ColorValue, StyleProp, ViewProps, ViewStyle } from 'react-native';
+import type { ColorValue, StyleProp, TextStyle, ViewProps, ViewStyle } from 'react-native';
 
 export type EffectiveGlassQuality = 'ultra' | 'high' | 'medium' | 'low' | 'minimal';
 
@@ -112,6 +112,15 @@ export interface GlassProviderProps {
 
 export interface GlassSurfaceProps extends Omit<ViewProps, 'style'> {
   children?: ReactNode;
+  /** Shadow outside the shape, so it can't darken the glass. `true` for the default, or 0 to 1 */
+  shadow?: boolean | number;
+  /** Paints the rim this colour instead of the light the glass picks, alpha included */
+  edgeColor?: ColorValue;
+  /** Rim thickness in points, a hairline by default */
+  edgeWidth?: number;
+  /** Bends the background harder along the rim, on by default. Android 13+ only, the other
+   * renderers either bend already or can't read what's behind them. `false` or 0 to 1 */
+  edgeRefraction?: boolean | number;
   quality?: GlassQuality;
   priority?: GlassPriority;
   /** 0..1 */
@@ -181,9 +190,17 @@ export interface GlassLensProps extends ViewProps {
 
 export interface GlassMenuItem {
   label: string;
+  /** Text style for this row only, on top of the menu's `labelStyle` */
+  labelStyle?: StyleProp<TextStyle>;
   icon?: ReactNode;
   onPress?: () => void;
   destructive?: boolean;
+  /** Dimmed, and taps on it do nothing */
+  disabled?: boolean;
+  /** Shows a checkmark, for rows that act like a choice */
+  selected?: boolean;
+  /** Hairline under this row, to group the ones above */
+  separator?: boolean;
   /** Opens a submenu in the same panel instead of running onPress. */
   items?: GlassMenuItem[];
 }
@@ -194,8 +211,14 @@ export interface GlassMenuProps {
   items: GlassMenuItem[];
   size?: number;
   width?: number;
+  /** Tallest the panel gets before it scrolls. Defaults to half the screen */
+  maxHeight?: number;
   tint?: GlassTint;
   style?: StyleProp<ViewStyle>;
+  /** Text style for every row, font included. Rows are 44pt tall at font scale 1 */
+  labelStyle?: StyleProp<TextStyle>;
+  onOpen?: () => void;
+  onClose?: () => void;
   accessibilityLabel?: string;
 }
 
