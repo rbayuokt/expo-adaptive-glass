@@ -761,14 +761,16 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
         val k = if (lightOn) specAlpha else 0f
         val lightX = -0.25f * w + (touchX + 0.25f * w) * k
         val lightY = -0.6f * h + (touchY + 0.6f * h) * k
-        val bezel = maxOf(minOf(radius, minOf(w, h) * 0.5f), 8f * density)
+        // iOS 26 warps the whole shape, not just a band at the rim
+        val plain = maxOf(minOf(radius, minOf(w, h) * 0.5f), 8f * density)
+        val bezel = if (edgeRefraction > 0f) minOf(w, h) * 0.5f else plain
         shader.effect(
           blurEffect, w.toFloat(), h.toFloat(), radius, bezel,
           // past the shape's own edge band the bend folds back and the outline goes faceted
           minOf(
             refractionNow * MAX_REFRACTION_DP * (1f + 2f * edgeRefraction) * density,
-            bezel,
-            minOf(w, h) * 0.22f,
+            bezel * 0.9f,
+            minOf(w, h) * 0.35f,
           ),
           if (shaderQuality >= 3) 1f else 0f,
           lightX, lightY, k,

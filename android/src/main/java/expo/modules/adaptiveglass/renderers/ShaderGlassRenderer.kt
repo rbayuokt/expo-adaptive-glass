@@ -54,7 +54,13 @@ class ShaderGlassRenderer {
     s.setFloatUniform("press", press)
     this.blur = blur
     val shaderEffect = RenderEffect.createRuntimeShaderEffect(s, "content")
-    effect = if (blur != null) RenderEffect.createChainEffect(shaderEffect, blur) else shaderEffect
+    // bend the sharp backdrop and blur after, or the bent edges are already soft.
+    // createChainEffect runs the second one first
+    effect = when {
+      blur == null -> shaderEffect
+      refractionPx > 0.5f -> RenderEffect.createChainEffect(blur, shaderEffect)
+      else -> RenderEffect.createChainEffect(shaderEffect, blur)
+    }
     return effect
   }
 
@@ -102,6 +108,12 @@ class ShaderGlassRenderer {
           float spread = chroma * bend * 0.16;
           color.r = content.eval(clamp(at - n * spread, lo, hi)).r;
           color.b = content.eval(clamp(at + n * spread, lo, hi)).b;
+        }
+        // a streak where the bend squeezes an edge, two samples apart find it and flat areas stay put
+        if (bend > 0.5) {
+          half4 far = content.eval(clamp(coord - n * bend * 1.6, lo, hi));
+          float squeeze = clamp(length(color.rgb - far.rgb) * 2.2, 0.0, 1.0);
+          color.rgb += half3(squeeze * smoothstep(0.2, 1.0, x) * 0.9) * color.a;
         }
         float2 l = normalize(light - size * 0.5 + 0.0001);
         float facing = max(dot(n, l), 0.0);
