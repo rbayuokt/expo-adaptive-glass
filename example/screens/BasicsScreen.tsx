@@ -113,14 +113,31 @@ export function BasicsScreen() {
               {
                 label: 'Read all',
                 icon: <Ionicons name="chatbubble-outline" size={20} color={theme.text} />,
+                selected: menuPick === 'Read all',
                 onPress: () => setMenuPick('Read all'),
+              },
+              {
+                label: 'Archive',
+                icon: <Ionicons name="archive-outline" size={20} color={theme.text} />,
+                disabled: true,
+                separator: true,
+                onPress: () => setMenuPick('Archive'),
               },
               {
                 label: 'Sort by',
                 icon: <Ionicons name="swap-vertical" size={20} color={theme.text} />,
                 items: [
-                  { label: 'Newest', onPress: () => setMenuPick('Newest') },
-                  { label: 'Unread first', onPress: () => setMenuPick('Unread first') },
+                  {
+                    label: 'Newest',
+                    selected: menuPick === 'Newest',
+                    onPress: () => setMenuPick('Newest'),
+                  },
+                  {
+                    label: 'Unread first',
+                    selected: menuPick === 'Unread first',
+                    separator: true,
+                    onPress: () => setMenuPick('Unread first'),
+                  },
                   {
                     label: 'More',
                     items: [
@@ -144,6 +161,7 @@ export function BasicsScreen() {
           <GlassMenu
             accessibilityLabel="Add"
             trigger={<Ionicons name="add" size={22} color={theme.text} />}
+            labelStyle={styles.menuLabel}
             items={[
               {
                 label: 'New chat',
@@ -153,9 +171,31 @@ export function BasicsScreen() {
               {
                 label: 'New group',
                 icon: <Ionicons name="people-outline" size={20} color={theme.text} />,
+                separator: true,
                 onPress: () => setMenuPick('New group'),
               },
+              {
+                label: 'New broadcast',
+                icon: <Ionicons name="megaphone-outline" size={20} color={theme.accent} />,
+                labelStyle: { color: theme.accent, fontWeight: '700' },
+                onPress: () => setMenuPick('New broadcast'),
+              },
+              {
+                label: 'New community',
+                icon: <Ionicons name="business-outline" size={20} color={theme.text} />,
+                disabled: true,
+                onPress: () => setMenuPick('New community'),
+              },
             ]}
+          />
+          <GlassMenu
+            accessibilityLabel="Long list"
+            trigger={<Ionicons name="list" size={20} color={theme.text} />}
+            labelStyle={{ fontSize: 15 }}
+            items={Array.from({ length: 24 }, (_, i) => ({
+              label: `Row ${i + 1}`,
+              onPress: () => setMenuPick(`Row ${i + 1}`),
+            }))}
           />
         </View>
       </Section>
@@ -236,6 +276,7 @@ const styles = StyleSheet.create({
   switches: { paddingHorizontal: 18, paddingVertical: 8 },
   menuRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   menuPick: { flex: 1 },
+  menuLabel: { fontSize: 15, letterSpacing: 0.3 },
   lensStage: { gap: 10 },
   lensImage: { height: 160, borderRadius: 16 },
   switchRow: {

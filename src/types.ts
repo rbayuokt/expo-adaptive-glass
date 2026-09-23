@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { ColorValue, StyleProp, ViewProps, ViewStyle } from 'react-native';
+import type { ColorValue, StyleProp, TextStyle, ViewProps, ViewStyle } from 'react-native';
 
 export type EffectiveGlassQuality = 'ultra' | 'high' | 'medium' | 'low' | 'minimal';
 
@@ -181,9 +181,17 @@ export interface GlassLensProps extends ViewProps {
 
 export interface GlassMenuItem {
   label: string;
+  /** Text style for this row only, on top of the menu's `labelStyle` */
+  labelStyle?: StyleProp<TextStyle>;
   icon?: ReactNode;
   onPress?: () => void;
   destructive?: boolean;
+  /** Dimmed, and taps on it do nothing */
+  disabled?: boolean;
+  /** Shows a checkmark, for rows that act like a choice */
+  selected?: boolean;
+  /** Hairline under this row, to group the ones above */
+  separator?: boolean;
   /** Opens a submenu in the same panel instead of running onPress. */
   items?: GlassMenuItem[];
 }
@@ -194,8 +202,14 @@ export interface GlassMenuProps {
   items: GlassMenuItem[];
   size?: number;
   width?: number;
+  /** Tallest the panel gets before it scrolls. Defaults to half the screen */
+  maxHeight?: number;
   tint?: GlassTint;
   style?: StyleProp<ViewStyle>;
+  /** Text style for every row, font included. Rows are 44pt tall at font scale 1 */
+  labelStyle?: StyleProp<TextStyle>;
+  onOpen?: () => void;
+  onClose?: () => void;
   accessibilityLabel?: string;
 }
 

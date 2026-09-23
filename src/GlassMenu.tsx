@@ -2,12 +2,16 @@ import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState
 import {
   BackHandler,
   Modal,
+  Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
   useColorScheme,
   useWindowDimensions,
   type LayoutChangeEvent,
+  type StyleProp,
+  type TextStyle,
 } from 'react-native';
 
 import { GlassSurface } from './GlassSurface';
@@ -41,8 +45,12 @@ export function GlassMenu({
   items,
   size = 44,
   width = 250,
+  maxHeight,
   tint = 'system',
   style,
+  labelStyle,
+  onOpen,
+  onClose,
   accessibilityLabel,
 }: GlassMenuProps) {
   const overlay = useOverlay();
@@ -50,11 +58,14 @@ export function GlassMenu({
   const window = useWindowDimensions();
   const scheme = useColorScheme();
   const dark = tint === 'dark' || (tint !== 'light' && scheme === 'dark');
+  // rows grow with the text size, capped so a huge accessibility setting still fits
+  const rowHeight = Math.round(ROW_HEIGHT * Math.min(window.fontScale, 1.6));
+  const maxPanelHeight = Math.min(maxHeight ?? window.height / 2, window.height - 2 * MARGIN);
   const buttonRef = useRef<View>(null);
 
   const [anchor, setAnchor] = useState<Rect | null>(null);
   const [stack, setStack] = useState<Level[]>([]);
-  const [heights, setHeights] = useState<(number | undefined)[]>([]);
+  const [contentHeights, setContentHeights] = useState<(number | undefined)[]>([]);
   // level the user asked for: 0 is the button, 1 the root menu, 2+ submenus
   const [level, setLevel] = useState(0);
   // what the glass shows, waits for the panel to be measured
@@ -66,19 +77,28 @@ export function GlassMenu({
     buttonRef.current?.measureInWindow((x, y, w, h) => {
       setAnchor({ x, y, width: w, height: h });
       setStack([{ items }]);
-      setHeights([]);
+      setContentHeights([]);
       setShown(0);
       setLevel(1);
+      onOpen?.();
     });
-  }, [items]);
+  }, [items, onOpen]);
 
   const reset = useCallback(() => {
     setAnchor(null);
     setStack([]);
-    setHeights([]);
+    setContentHeights([]);
     setShown(0);
     setLevel(0);
-  }, []);
+    onClose?.();
+  }, [onClose]);
+
+  // a list taller than the screen scrolls, which rules out the native drag
+  const panelHeight = (i: number) => Math.min(contentHeights[i] ?? 0, maxPanelHeight);
+  const scrolls = (i: number) => (contentHeights[i] ?? 0) > maxPanelHeight;
+  const heights = contentHeights.map((h) =>
+    h === undefined ? undefined : Math.min(h, maxPanelHeight)
+  );
 
   // the glass follows the level once its panel is measured
   const ready = level === 0 || heights[level - 1] !== undefined;
@@ -105,7 +125,7 @@ export function GlassMenu({
       } else if (index > 0 && index === level) {
         // drop submenus we came back from
         setStack((s) => (s.length > index ? s.slice(0, index) : s));
-        setHeights((h) => (h.length > index ? h.slice(0, index) : h));
+        setContentHeights((h) => (h.length > index ? h.slice(0, index) : h));
       }
     },
     [level, reset]
@@ -113,6 +133,7 @@ export function GlassMenu({
 
   const select = useCallback(
     (item: GlassMenuItem) => {
+      if (item.disabled) return;
       if (item.items) {
         setStack((s) => [...s.slice(0, level), { title: item.label, items: item.items! }]);
         setLevel(level + 1);
@@ -126,7 +147,7 @@ export function GlassMenu({
 
   const measured = useCallback((i: number, e: LayoutChangeEvent) => {
     const h = e.nativeEvent.layout.height;
-    setHeights((prev) => {
+    setContentHeights((prev) => {
       if (prev[i] === h) return prev;
       const next = prev.slice();
       next[i] = h;
@@ -160,14 +181,14 @@ export function GlassMenu({
 
   // rows have a fixed height, so the native side gets their rects without a measure pass
   const menuRows =
-    anchor && shown > 0
+    anchor && shown > 0 && !scrolls(shown - 1)
       ? actions(shown - 1).map((_, j) => {
           const r = panelRect(shown - 1);
           return [
             r.x + ROW_INSET,
-            r.y + PANEL_PADDING + j * ROW_HEIGHT,
+            r.y + PANEL_PADDING + j * rowHeight,
             width - 2 * ROW_INSET,
-            ROW_HEIGHT,
+            rowHeight,
           ];
         })
       : [];
@@ -204,39 +225,56 @@ export function GlassMenu({
           return (
             <View
               key={i}
-              pointerEvents="none"
-              onLayout={(e) => measured(i, e)}
-              style={[styles.panel, { left: r.x, top: r.y, width }]}>
-              {i > 0 && (
-                <Row
-                  label={l.title ?? ''}
-                  leading={
-                    <Text style={[styles.chevron, { color: dark ? '#fff' : '#000' }]}>‹</Text>
-                  }
-                  dark={dark}
-                  onActivate={() => setLevel(i)}
-                  bold
-                />
-              )}
-              {l.items.map((item, j) => (
-                <Row
-                  key={j}
-                  label={item.label}
-                  leading={item.icon}
-                  trailing={
-                    item.items ? (
-                      <Text style={[styles.chevron, { color: dark ? '#fff' : '#000' }]}>›</Text>
-                    ) : null
-                  }
-                  destructive={item.destructive}
-                  dark={dark}
-                  onActivate={() => select(item)}
-                />
-              ))}
+              pointerEvents={scrolls(i) ? 'box-none' : 'none'}
+              style={[
+                styles.panel,
+                { left: r.x, top: r.y, width, height: panelHeight(i) || undefined },
+              ]}>
+              <ScrollView scrollEnabled={scrolls(i)} showsVerticalScrollIndicator={scrolls(i)}>
+                <View style={styles.panelContent} onLayout={(e) => measured(i, e)}>
+                  {i > 0 && (
+                    <Row
+                      label={l.title ?? ''}
+                      labelStyle={labelStyle}
+                      height={rowHeight}
+                      pressable={scrolls(i)}
+                      leading={
+                        <Text style={[styles.chevron, { color: dark ? '#fff' : '#000' }]}>‹</Text>
+                      }
+                      dark={dark}
+                      onActivate={() => setLevel(i)}
+                      bold
+                    />
+                  )}
+                  {l.items.map((item, j) => (
+                    <Row
+                      key={j}
+                      label={item.label}
+                      labelStyle={[labelStyle, item.labelStyle]}
+                      leading={item.icon}
+                      trailing={
+                        item.items ? (
+                          <Text style={[styles.chevron, { color: dark ? '#fff' : '#000' }]}>›</Text>
+                        ) : null
+                      }
+                      destructive={item.destructive}
+                      disabled={item.disabled}
+                      selected={item.selected}
+                      separator={item.separator}
+                      height={rowHeight}
+                      pressable={scrolls(i)}
+                      dark={dark}
+                      onActivate={() => select(item)}
+                    />
+                  ))}
+                </View>
+              </ScrollView>
             </View>
           );
         })}
       </GlassSurface>
+      {/* a scrolling menu isn't tracked natively, so taps around the panel close it here */}
+      {shown > 0 && scrolls(shown - 1) && <Dismiss rect={panelRect(shown - 1)} onPress={close} />}
     </View>
   ) : null;
 
@@ -290,39 +328,83 @@ export function GlassMenu({
   );
 }
 
+function Dismiss({ rect, onPress }: { rect: Rect; onPress: () => void }) {
+  const strips = [
+    { left: 0, right: 0, top: 0, height: Math.max(0, rect.y) },
+    { left: 0, right: 0, top: rect.y + rect.height, bottom: 0 },
+    { left: 0, top: rect.y, width: Math.max(0, rect.x), height: rect.height },
+    { left: rect.x + rect.width, right: 0, top: rect.y, height: rect.height },
+  ];
+  return (
+    <>
+      {strips.map((style, i) => (
+        <Pressable
+          key={i}
+          accessibilityLabel="Close menu"
+          onPress={onPress}
+          style={[{ position: 'absolute' }, style]}
+        />
+      ))}
+    </>
+  );
+}
+
 function Row({
   label,
+  labelStyle,
   leading,
   trailing,
   destructive,
+  disabled,
+  selected,
+  separator,
+  height,
+  pressable,
   dark,
   bold,
   onActivate,
 }: {
   label: string;
+  labelStyle?: StyleProp<TextStyle>;
   leading?: React.ReactNode;
   trailing?: React.ReactNode;
   destructive?: boolean;
+  disabled?: boolean;
+  selected?: boolean;
+  separator?: boolean;
+  height: number;
+  pressable?: boolean;
   dark: boolean;
   bold?: boolean;
   onActivate: () => void;
 }) {
   const color = destructive ? '#ff3b30' : dark ? '#fff' : '#000';
+  // the native menu handles touches, a scrolling panel has to do it here instead
+  const Container = pressable ? Pressable : View;
   return (
-    // touches go to the native menu, this only serves screen readers
-    <View
+    <Container
       accessible
       accessibilityRole="menuitem"
       accessibilityLabel={label}
+      accessibilityState={{ disabled, selected }}
       accessibilityActions={[{ name: 'activate' }]}
       onAccessibilityAction={onActivate}
-      style={styles.row}>
+      onPress={pressable && !disabled ? onActivate : undefined}
+      style={[
+        styles.row,
+        { height, opacity: disabled ? 0.4 : 1 },
+        separator && {
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: dark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)',
+        },
+      ]}>
       {leading != null && <View style={styles.icon}>{leading}</View>}
-      <Text numberOfLines={1} style={[styles.label, { color }, bold && styles.bold]}>
+      <Text numberOfLines={1} style={[styles.label, { color }, bold && styles.bold, labelStyle]}>
         {label}
       </Text>
+      {selected && <Text style={[styles.chevron, { color }]}>✓</Text>}
       {trailing}
-    </View>
+    </Container>
   );
 }
 
@@ -333,9 +415,10 @@ function rectStyle(r: Rect) {
 const styles = StyleSheet.create({
   button: { alignItems: 'center', justifyContent: 'center' },
   trigger: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-  panel: { position: 'absolute', paddingVertical: PANEL_PADDING },
+  panel: { position: 'absolute' },
+  panelContent: { paddingVertical: PANEL_PADDING },
   row: {
-    height: ROW_HEIGHT,
+    minHeight: ROW_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,

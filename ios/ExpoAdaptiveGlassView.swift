@@ -616,8 +616,14 @@ final class ExpoAdaptiveGlassView: ExpoView, UIGestureRecognizerDelegate {
 
   override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
     guard morphActive else { return super.hitTest(point, with: event) }
-    // the open menu takes every touch, a closing one lets them through to the app
-    return menuActive && bounds.contains(point) ? self : nil
+    if menuActive && bounds.contains(point) { return self }
+    // a menu with no rows scrolls its own list, so its rows keep their touches
+    if morphIndex > 0 {
+      let hit = super.hitTest(point, with: event)
+      return hit === self ? nil : hit
+    }
+    // a closing menu lets touches through to the app
+    return nil
   }
 
   override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {

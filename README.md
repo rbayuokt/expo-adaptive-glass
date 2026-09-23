@@ -53,7 +53,7 @@ so the app has to be built with it, using `npx expo prebuild`, `npx expo run:ios
 permissions to ask for.
 
 ```bash
-npx expo install @rbayuokt/expo-adaptive-glass
+npx expo install @rbayuokt/expo-adaptive-glass@latest
 npx expo run:ios        # or run:android, or an EAS build
 ```
 
@@ -114,6 +114,20 @@ down on ones that can't. To always get the best glass, use `<GlassProvider quali
 
 "The best glass the platform has" is Apple's glass on iOS 26, blur with the AGSL lens on Android
 13+, plain blur on Android 12 and older iOS, and acrylic on older Android.
+
+The provider also holds `clarity`, the same idea as Clear and Tinted in iOS 26. It starts at `1`,
+clear glass that lets the background through, and `0` is the frosted, tinted look with more
+contrast for text sitting on the glass. Anything between works.
+
+```tsx
+const [clarity, setClarity] = useState(1);
+
+<GlassProvider clarity={clarity}>{/* your app */}</GlassProvider>;
+```
+
+Keeping it in state like that is all you need to wire it to a slider in your own settings
+screen, the way the example app does. It applies to every glass below the provider, and a
+colour `tint` keeps its colour at any clarity. More in [`<GlassProvider>`](#glassprovider).
 
 Surfaces still render without a provider, they share a default one. But then `GlassMenu` falls
 back to a `Modal` and there's nowhere to set anything app-wide, so add it.
@@ -658,12 +672,29 @@ level.
 | Prop | Default | Does |
 | --- | --- | --- |
 | `trigger` | | What the button shows, usually an icon |
-| `items` | | `{ label, icon?, onPress?, destructive?, items? }`, nest `items` as deep as you like |
+| `items` | | See the item table below, nest `items` as deep as you like |
 | `size` | `44` | Button diameter |
 | `width` | `250` | Panel width |
+| `maxHeight` | half the screen | Tallest the panel gets before the list scrolls |
 | `tint` | `'system'` | Same values as `GlassSurface` |
+| `labelStyle` | | Text style for every row, font family included |
+| `onOpen` / `onClose` | | Called when the menu opens and when it's fully closed |
 | `style` | | Style of the button's wrapper, for margins and placement |
 | `accessibilityLabel` | | What screen readers say for the button, needed when it's only an icon |
+
+Each item:
+
+| Key | Does |
+| --- | --- |
+| `label` | Row text |
+| `icon` | Anything, drawn before the label |
+| `onPress` | Runs on pick, unless the item has `items` |
+| `items` | Opens a submenu in the same panel |
+| `destructive` | Red label, for deletes |
+| `disabled` | Dimmed, picking it does nothing |
+| `selected` | Shows a checkmark, for rows that act like a choice |
+| `separator` | Hairline under the row, to group the ones above |
+| `labelStyle` | Text style for this row, on top of the menu's |
 
 Long press the button and the menu opens under your finger. Keep the finger down and drag
 through the rows, a highlight slides to the row under it with a light haptic tick, and letting
@@ -671,6 +702,10 @@ go picks that row. Release without moving and the menu just stays open. Once it'
 and sliding works the same way. Pull past the edge and the panel stretches after your finger
 like jelly, then wobbles back when you let go. All of this is tracked natively, JS only hears
 the row that was picked.
+
+Rows are 44pt at font scale 1 and grow with the system text size, up to 1.6x. A list taller than
+the screen scrolls instead, and a scrolling panel gives up the native drag, so rows are tapped
+and the highlight doesn't follow the finger.
 
 The panel opens from the button's corner nearest the middle of the screen and stays on screen.
 It draws in a layer that `GlassProvider` keeps above the app, so it isn't clipped by the button's
@@ -751,6 +786,8 @@ Cards blur the backdrop, not the list content next to them.
   motion and the lens.
 - Tints follow light and dark mode, and highlights are mixed from the tint rather than plain
   white.
+- `GlassMenu` rows grow with the system text size, up to 1.6x, and every row is a menu item for
+  screen readers with its disabled and selected state.
 
 ## Lifecycle and cost
 
@@ -781,32 +818,11 @@ The bottom bar is the library's own `GlassTabBar`.
 | Inspect | Device facts and runtime state |
 | Settings | Global glass settings (Tinted / Clear, a clarity slider, quality, the provider toggles) and About |
 
-Inside Home, Basics has the tab bar lens with a lens / pill / colour switcher, switches, a left and a right `GlassMenu` (one with
-nested submenus) and a `GlassLens` over a photo. Merge has joining, splitting, a draggable
+Inside Home, Basics has the tab bar lens with a lens / pill / colour switcher, switches, three
+`GlassMenu`s (nested submenus, checkmarks, a disabled row, separators and styled labels, plus a
+24 row menu that scrolls) and a `GlassLens` over a photo. Merge has joining, splitting, a draggable
 circle and a detaching + button, and Nav runs a real React Navigation bottom-tabs navigator with
 `GlassNavigationTabBar`.
-
-## Benchmarks
-
-No numbers yet. They'll only ever come from real devices.
-
-The Benchmark tab runs for 10 seconds, after a 2 second warm-up, over the animated backdrop with
-1 to 30 surfaces, pinned to `ultra`, `medium`, `low` or left on `auto`. **Run all** walks every
-combination. Each run is listed on screen with how many surfaces actually rendered live, and is
-logged as one JSON line prefixed with `[benchmark]`. Use release builds (`npm run ios:release` / `npm run android:release` in
-`example/`), a charged phone at a normal temperature, and three runs per setup.
-
-| Device | OS | Surfaces | Mode | Live | Avg fps | Avg frame (ms) | Dropped | Notes |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| High-end iPhone | | | | | | | | |
-| Older iPhone | | | | | | | | |
-| High-end Android | | | | | | | | |
-| Mid-range Android | | | | | | | | |
-| Low-end Android | | | | | | | | |
-
-Frame time isn't the same measure on both platforms. iOS reports the gap between display link
-callbacks, Android reports `FrameMetrics.TOTAL_DURATION`, which sits well under budget when
-things are smooth. Emulator and simulator numbers mean nothing.
 
 ## Troubleshooting
 
@@ -849,7 +865,7 @@ view, so its own background paints over the glass. Put colors on the children or
   background.
 - No native drop shadow, it would show through the glass. Use React Native shadow styles.
 - Only the New Architecture has been run.
-- The scoring weights and budget are guesses until the benchmark table has numbers.
+- The scoring weights and budget are guesses until they're measured on real devices.
 
 ## Architecture
 

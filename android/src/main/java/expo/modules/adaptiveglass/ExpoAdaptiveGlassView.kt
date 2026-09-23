@@ -707,10 +707,13 @@ class ExpoAdaptiveGlassView(context: Context, appContext: AppContext) : ExpoView
   // watches touches without consuming them, RN touchables keep working
   override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
     if (morphActive) {
-      // the open menu takes every touch, a closing one lets them through to the app
-      if (!menuActive) return false
-      handleMenuTouch(ev)
-      return true
+      if (menuActive) {
+        handleMenuTouch(ev)
+        return true
+      }
+      // a menu with no rows scrolls its own list, so its rows keep their touches.
+      // a closing menu lets them through to the app
+      return if (morphIndex > 0) super.dispatchTouchEvent(ev) else false
     }
     if (menuTrigger && handleTrigger(ev)) {
       super.dispatchTouchEvent(ev)
